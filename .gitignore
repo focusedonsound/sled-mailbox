@@ -1,0 +1,7 @@
+cat << 'EOF' > .gitignore
+config.yaml
+logs/
+videos/
+__pycache__/
+*.pyc
+EOF
