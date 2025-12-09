@@ -1,0 +1,65 @@
+# Example config for SLED: Santa's Letter Express Delivery
+# Copy to config.yaml and adjust for your environment.
+
+paths:
+  # Relative paths are fine; SLED will run from the project directory.
+  videos: "./videos"
+  logs: "./logs"
+
+schedule:
+  # Local time for when the screen should be active
+  start: "16:00"   # idle loop ON from 4pm
+  end:   "22:00"   # idle loop OFF at 10pm
+
+video:
+  # Idle video and event clips (filenames inside paths.videos)
+  idle: idle.mp4
+  clips:
+    - event1.mp4
+    - event2.mp4
+    - event3.mp4
+    - event4.mp4
+  # Safety cap so a bad file does not hang playback
+  play_timeout_s: 65
+
+pins:
+  # BCM pin numbers for when you flip from mocks to real GPIO
+  letter: 17
+  radar_a: 27
+  radar_b: 22
+
+car:
+  # Ignore tiny wiggles and only count real passes
+  min_pulse_ms: 120
+  # A→B or B→A must happen within this window to count as one car
+  sequence_window_s: 0.8
+  # Do not double count the same vehicle
+  cooldown_s: 1.5
+  # Distance between sensors in feet (for optional speed calc later)
+  spacing_feet: 1.75
+
+letter:
+  debounce_ms: 50
+  # Ignore retriggers right after a drop
+  cooldown_s: 2.0
+
+direction:
+  # Which raw sequence means "Inbound" for your mounting?
+  # If sensor A is closer to the main road, leave "AB".
+  # If mounted opposite, set "BA".
+  toward_reference: "AB"
+
+  # Friendly labels that will appear in Home Assistant
+  label_toward: "Inbound"
+  label_away:   "Outbound"
+
+mqtt:
+  host: 192.168.0.132
+  port: 1883
+  username: "santa"
+  password: "REPLACE_ME"
+  base: "sled"
+  discovery: true
+  # How the device appears in Home Assistant's Devices list
+  device_name: "SLED"
+  device_id:   "sled_pi"

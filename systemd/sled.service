@@ -1,0 +1,16 @@
+[Unit]
+Description=SLED: Santa's Letter Express Delivery
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=santa
+Group=santa
+WorkingDirectory=/home/santa/santa_mailbox
+ExecStart=/usr/bin/python3 app.py
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
