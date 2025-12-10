@@ -26,6 +26,13 @@ When someone drops a letter in the mailbox, SLED plays a video on a connected sc
 
 ## Build supply list
 
+<p align="center">
+    <img src="docs/media/mailbox_design.png"
+         alt="Build Design Plans"
+         width="640">
+  </a>
+</p> 
+
 This is the reference bill of materials for the physical SLED mailbox enclosure.  
 Electronics are listed separately in the Hardware section.
 
