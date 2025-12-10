@@ -3,10 +3,9 @@
 SLED is a smart "Letters to Santa" mailbox system powered by a Raspberry Pi, MQTT, and Home Assistant.
 
 <p align="center">
-  <!-- Clickable thumbnail that opens the MP4 in GitHub -->
-  <a href="docs/media/sled-demo.mp4">
+  <a href="https://youtu.be/lKsuSaLmaug">
     <img src="docs/media/sled-mailbox-front.jpg"
-         alt="Watch the SLED demo video"
+         alt="Watch the SLED demo video on YouTube"
          width="640">
   </a>
 </p>
