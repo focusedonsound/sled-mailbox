@@ -1,7 +1,16 @@
 # SLED: Santa's Letter Express Delivery
 
 SLED is a smart "Letters to Santa" mailbox system powered by a Raspberry Pi, MQTT, and Home Assistant.
-[![SLED demo thumbnail](docs/media/sled-mailbox-front.jpg)](docs/media/sled-demo.mp4)
+
+<p align="center">
+  <!-- Clickable thumbnail that opens the MP4 in GitHub -->
+  <a href="docs/media/sled-demo.mp4">
+    <img src="docs/media/sled-mailbox-front.jpg"
+         alt="Watch the SLED demo video"
+         width="640">
+  </a>
+</p>
+
 When someone drops a letter in the mailbox, SLED plays a video on a connected screen, sends events to Home Assistant, and counts car traffic passing by using dual radar sensors for direction detection.
 
 ## Features
