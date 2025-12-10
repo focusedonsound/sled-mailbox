@@ -2,7 +2,7 @@
 
 <p align="center">
   <a href="https://youtu.be/lKsuSaLmaug">
-    <img src="docs/media/video-thumbnail.jpg"
+    <img src="docs/media/video-thumbnail.png"
          alt="Watch the SLED demo video on YouTube"
          width="640">
   </a>
