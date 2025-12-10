@@ -8,9 +8,24 @@
   </a>
 </p> 
 
-SLED is a smart "Letters to Santa" mailbox system powered by a Raspberry Pi, MQTT, and Home Assistant.
+SLED is what happens when a classic “Letters to Santa” mailbox collides with a Raspberry Pi, Home Assistant, and an over-engineered Christmas light show.
 
-When someone drops a letter in the mailbox, SLED plays a video on a connected screen, sends events to Home Assistant, and counts car traffic passing by using dual radar sensors for direction detection.
+Instead of letters disappearing into a mysterious box, SLED turns every drop into a mini event:
+kids (and grown-ups) slide a letter into the slot, the mailbox wakes up, and a personalized video message from Santa appears on the built-in 24″ monitor. At the same time, SLED quietly updates your smart home, logs activity, and even counts cars passing by your display using dual radar sensors we can even determine direction, and intent .
+
+All of this started after seeing the incredible **Santa’s Video Mailbox** created by Haus of Holiday Lights:  
+https://www.hausofholidaylights.com/santas-video-mailbox  
+
+This project is a respectful DIY reimagining of that idea, focused on being:
+- **Accessible** – built on a tight budget of roughly **$200 USD**, by reusing a spare 24″ monitor I already had on hand.
+- **Hackable** – all logic runs on a Raspberry Pi with Python, MQTT, and Home Assistant, so you can extend and automate it however you like.
+- **Observable** – SLED doesn’t just show video; it also sends rich telemetry so you can see when letters were dropped, how busy your street is, and how people are interacting with your display.
+
+In short:
+
+> **SLED is a smart “Letters to Santa” mailbox system powered by a Raspberry Pi, MQTT, and Home Assistant. When someone drops a letter in the mailbox, SLED plays a video on a connected screen, sends events to Home Assistant, and counts car traffic passing by using dual radar sensors for direction detection.**
+
+The rest of this README walks through how to build the enclosure, wire the sensors, install the software, and integrate SLED into your holiday show.
 
 ## Features
 
