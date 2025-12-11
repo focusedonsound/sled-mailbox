@@ -1,0 +1,555 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>RD-03E / LD2410 Scope</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+  <style>
+    :root{
+      color-scheme: dark;
+      --bg:#121417; --paper:#1b1f24; --edge:#2a2f37; --muted:#9aa5b1; --text:#d8dee9;
+      --accent:#4cc9f0; --ok:#6ee7b7; --warn:#fbbf24;
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,"Noto Sans","Helvetica Neue",Arial}
+    code,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace}
+
+    /* Toolbar */
+    header{
+      position:sticky;top:0;z-index:20;
+      display:flex;flex-wrap:wrap;gap:8px 10px;align-items:center;
+      padding:10px 12px;background:var(--paper);border-bottom:1px solid var(--edge)
+    }
+    .pill{background:#242a33;border:1px solid var(--edge);border-radius:14px;padding:6px 10px}
+    .btn{background:#2f6fed;border:1px solid #2557be;color:#fff;padding:6px 10px;border-radius:8px;cursor:pointer}
+    .btn:disabled{opacity:.55}
+    label.hdr{display:flex;gap:6px;align-items:center}
+    #counts_pill{margin-left:auto}
+
+    /* Global sliders band */
+    .band{margin:12px;padding:12px;background:var(--paper);border:1px solid var(--edge);border-radius:12px}
+    .bandgrid{display:grid;gap:10px;grid-template-columns:1fr 1fr}
+    @media (max-width:1100px){.bandgrid{grid-template-columns:1fr}}
+    .bandrow{display:grid;gap:6px;align-items:center;background:#161a20;border:1px solid #1f2530;border-radius:10px;padding:8px 10px;
+      grid-template-columns: 1fr minmax(160px,1fr) 64px}
+    .bandrow .rng{grid-column:1/-1;opacity:.65;font-size:12px;margin-top:-2px}
+
+    /* Main grid */
+    .grid{display:grid;gap:14px;padding:14px;grid-template-columns: minmax(320px,1fr) minmax(360px,1fr) minmax(320px,1fr);align-items:start}
+    @media (max-width:1280px){.grid{grid-template-columns:1fr}}
+
+    .card{background:var(--paper);border:1px solid var(--edge);border-radius:12px;padding:12px;position:relative;overflow:hidden}
+
+    /* Bars */
+    .bar{height:220px;background:linear-gradient(180deg,#1c2329,#0e1115);border-radius:10px;border:1px solid #0f141a;position:relative;overflow:hidden}
+    .fill{position:absolute;left:0;right:0;bottom:0;background:#4cd964;transition:height .1s}
+    .fill.active{box-shadow:0 0 16px rgba(80,255,120,.5)}
+    .line{position:absolute;left:0;right:0;border-top:2px solid #ff6767;opacity:.9}
+    .line.rel{border-top:2px dashed #f3a857;opacity:.85}
+    .dim{opacity:.85;font-size:13px;margin-top:6px}
+
+    /* Tuner layout */
+    .tuners{display:grid;gap:10px}
+    .trow{display:grid;gap:10px;grid-template-columns:repeat(2, minmax(240px,1fr))}
+    @media (max-width:900px){.trow{grid-template-columns:1fr}}
+    .trow label{
+      display:grid;gap:6px;align-items:center;
+      grid-template-columns: 1fr minmax(160px,1fr) 56px;
+      grid-template-rows:auto auto;
+      padding:8px;background:#161a20;border:1px solid #1f2530;border-radius:10px
+    }
+    .trow label .rng{grid-column:1/4;opacity:.65;font-size:12px;margin-top:-2px}
+
+    /* Center panel */
+    .vehrow{display:flex;justify-content:center;gap:28px;margin:6px 0 10px}
+    .vehcol{display:flex;flex-direction:column;align-items:center;gap:6px}
+    .vehIcon{font-size:64px;opacity:.9}
+    .vehSVG{width:92px;height:52px;opacity:.9}
+    .inout{font-size:12px;opacity:.9}
+
+    /* Constrain UART/RAW panes */
+    .panes{display:grid;gap:12px;grid-template-columns:1fr 1fr;margin-top:12px;max-width:100%}
+    @media (max-width:1100px){.panes{grid-template-columns:1fr}}
+    .pane{display:flex;flex-direction:column;min-height:260px;max-height:320px;max-width:100%}
+    .pane h4{margin:0 0 8px 0}
+    .pane-body{
+      flex:1 1 auto;overflow:auto;border:1px solid var(--edge);border-radius:10px;
+      padding:10px;background:#14181e;max-width:100%
+    }
+
+    textarea,input[type="text"],input[type="number"],select{
+      background:#2a2f37;color:var(--text);border:1px solid #3a404a;border-radius:8px;padding:6px 8px;min-width:0
+    }
+    textarea{width:100%}
+    .monolist{background:#0f141a;border:1px solid var(--edge);border-radius:8px;padding:8px;max-height:220px;overflow:auto}
+    .log{font-size:12px;max-height:140px;overflow:auto;margin-top:8px;opacity:.95}
+    .smallbtn{background:#3a404a;border:1px solid #454e5e;color:#fff;padding:5px 8px;border-radius:8px;cursor:pointer;font-size:12px}
+
+    /* LD2410 widget */
+    #ld2410-widget{position:fixed;right:12px;bottom:12px;z-index:50;background:rgba(16,19,22,.96);
+      color:var(--text);border:1px solid var(--edge);border-radius:10px;padding:10px 12px;min-width:280px;box-shadow:0 8px 20px rgba(0,0,0,.35)}
+    #ld2410-widget h4{margin:0 0 8px 0;font-size:15px;color:#aec6ff}
+    #ld2410-widget table{width:100%;border-collapse:collapse}
+    #ld2410-widget th,#ld2410-widget td{padding:3px 6px;font-size:13px;text-align:left}
+    #ld2410-widget th{color:#9fb2c8}
+    #ld2410-widget .ok{color:var(--ok)} #ld2410-widget .off{color:#ff9c9c}
+    #ld2410-widget .hint{color:#9fb2c8;font-size:11px;margin-top:6px}
+
+    /* Letters beam state colors */
+    .beam-ok{ color: var(--ok); font-weight: 600; }
+    .beam-broken{ color:#ff6767; font-weight: 700; }
+  </style>
+</head>
+<body>
+
+  <!-- Toolbar -->
+  <header>
+    <div class="pill">Live</div>
+    <label class="hdr"><input id="pause" type="checkbox"> Pause</label>
+    <button class="btn" onclick="bench()">Bench</button>
+    <button class="btn" onclick="cars()">Cars</button>
+    <button class="btn" onclick="resetView()">Reset view</button>
+    <button class="btn" onclick="saveCfg()">Save</button>
+    <button class="btn" onclick="loadCfg()">Load</button>
+    <button class="btn" onclick="resetCfg()">Reset</button>
+    <div id="cfgstat" class="pill">Config: —</div>
+    <div id="last" class="pill">Last: —</div>
+
+    <div id="counts_pill" class="pill mono" style="white-space:nowrap;margin-left:auto">
+      A→B <span id="cA2B">0</span> ·
+      B→A <span id="cB2A">0</span> ·
+      Cars <span id="cTotal">0</span> ·
+      Other <span id="cOther">0</span>
+    </div>
+    <button class="btn" onclick="resetCounts()">Reset counts</button>
+
+    <!-- Letters pill + reset -->
+    <div id="letters_pill" class="pill mono" style="white-space:nowrap">
+      📬 Letters <span id="letters_n">0</span> · Beam <span id="letters_beam" class="beam-ok">OK</span>
+    </div>
+    <button class="btn" onclick="resetLetters()">Reset letters</button>
+  </header>
+
+  <!-- Global sliders -->
+  <div class="band">
+    <div class="bandgrid">
+      <div class="bandrow"><div class="name">minsep</div><input id="minsep" type="range" min="0.05" max="1.50" step="0.01" value="0.35"><div id="minsep_val">0.35</div><div class="rng">0.05–1.50</div></div>
+      <div class="bandrow"><div class="name">min_dtAB</div><input id="min_dtAB" type="range" min="0.02" max="0.80" step="0.01" value="0.12"><div id="min_dtAB_val">0.12</div><div class="rng">0.02–0.80</div></div>
+      <div class="bandrow"><div class="name">pairAB</div><input id="pairAB" type="range" min="0.15" max="2.50" step="0.01" value="0.55"><div id="pairAB_val">0.55</div><div class="rng">0.15–2.50</div></div>
+      <div class="bandrow"><div class="name">min_dtBA</div><input id="min_dtBA" type="range" min="0.02" max="0.80" step="0.01" value="0.12"><div id="min_dtBA_val">0.12</div><div class="rng">0.02–0.80</div></div>
+      <div class="bandrow"><div class="name">pairBA</div><input id="pairBA" type="range" min="0.15" max="2.50" step="0.01" value="0.55"><div id="pairBA_val">0.55</div><div class="rng">0.15–2.50</div></div>
+      <div class="bandrow"><div class="name">simul_cutoff</div><input id="simul_cutoff" type="range" min="0.00" max="0.12" step="0.01" value="0.04"><div id="simul_cutoff_val">0.04</div><div class="rng">0.00–0.12</div></div>
+      <div class="bandrow"><div class="name">refract</div><input id="refract" type="range" min="0.20" max="3.00" step="0.01" value="1.00"><div id="refract_val">1.00</div><div class="rng">0.20–3.00</div></div>
+      <div class="bandrow"><div class="name">rate_max_eps</div><input id="rate_max_eps" type="range" min="0.0" max="20.0" step="0.5" value="8.0"><div id="rate_max_eps_val">8.0</div><div class="rng">0.0–20.0</div></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;margin-top:8px">
+      <input id="incomingRight" type="checkbox" checked> <span>Incoming is →</span>
+    </div>
+  </div>
+
+  <!-- Three columns -->
+  <div class="grid">
+    <!-- A -->
+    <div class="card">
+      <h3 style="margin:0 0 10px 0">A (left)</h3>
+      <div class="bar">
+        <div id="barA" class="fill" style="height:0%"></div>
+        <div id="thrA" class="line" style="bottom:0%"></div>
+        <div id="relA" class="line rel" style="bottom:0%"></div>
+      </div>
+      <div class="dim">trigger: <span id="sta">off</span> · offline: <span id="offA">no</span></div>
+
+      <div class="tuners" style="margin-top:10px">
+        <div class="trow">
+          <label><div>emaA</div><input id="emaA" type="range" min="0.01" max="0.60" step="0.01" value="0.07"><div id="emaA_val">0.07</div><div class="rng">0.01–0.60</div></label>
+          <label><div>emaDA</div><input id="emaDA" type="range" min="0.02" max="0.60" step="0.01" value="0.18"><div id="emaDA_val">0.18</div><div class="rng">0.02–0.60</div></label>
+        </div>
+        <div class="trow">
+          <label><div>deadA</div><input id="deadA" type="range" min="0" max="8" step="0.1" value="0.8"><div id="deadA_val">0.8</div><div class="rng">0–8</div></label>
+          <label><div>spike_factor_A</div><input id="spike_factor_A" type="range" min="0.0" max="8.0" step="0.5" value="0.0"><div id="spike_factor_A_val">0.0</div><div class="rng">0.0–8.0</div></label>
+        </div>
+        <div class="trow">
+          <label><div>trigA</div><input id="trigA" type="range" min="0" max="60" step="1" value="14"><div id="trigA_val">14</div><div class="rng">0–60</div></label>
+          <label><div>hysA</div><input id="hysA" type="range" min="0.35" max="0.95" step="0.01" value="0.65"><div id="hysA_val">0.65</div><div class="rng">0.35–0.95</div></label>
+        </div>
+        <div class="trow">
+          <label><div>holdA</div><input id="holdA" type="range" min="0.00" max="1.00" step="0.01" value="0.10"><div id="holdA_val">0.10</div><div class="rng">0.00–1.00</div></label>
+          <label><div>gainA</div><input id="gainA" type="range" min="1" max="8" step="0.1" value="4.5"><div id="gainA_val">4.5</div><div class="rng">1–8</div></label>
+        </div>
+        <div class="trow">
+          <label><div>sensor_timeoutA</div><input id="sensor_timeoutA" type="range" min="0" max="5000" step="50" value="0"><div id="sensor_timeoutA_val">0</div><div class="rng">0–5000</div></label>
+          <div style="display:flex;align-items:center"><button class="smallbtn" onclick="calib('A')">Calibrate A</button></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Center -->
+    <div class="card">
+      <h3 style="margin:0 0 10px 0">Direction / Speed</h3>
+      <div class="vehrow">
+        <div class="vehcol"><span id="vehL"></span><div class="inout" id="labelL">Outgoing</div></div>
+        <div class="vehcol"><span id="vehR"></span><div class="inout" id="labelR">Incoming</div></div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
+        <div style="display:flex;flex-wrap:wrap;gap:12px;justify-content:center">
+          <label>Vehicle:
+            <select id="vehSelect"><option value="car-side">car-side</option><option value="truck-monster">truck-monster</option></select>
+          </label>
+          <label><input id="speed_enable" type="checkbox"> speed_enable</label>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:12px;justify-content:center">
+          <label>sensor_spacing_ft
+            <input id="sensor_spacing_ft" type="range" min="0" max="30" step="0.5" value="0">
+            <span id="sensor_spacing_ft_val" class="pill">0</span>
+          </label>
+          <label>speed_filter_alpha
+            <input id="speed_filter_alpha" type="range" min="0.05" max="0.80" step="0.01" value="0.25">
+            <span id="speed_filter_alpha_val" class="pill">0.25</span>
+          </label>
+          <label>mph_min..max
+            <input id="mph_min" type="number" step="0.1" value="0.0" style="width:72px">
+            <input id="mph_max" type="number" step="0.1" value="80.0" style="width:72px">
+          </label>
+          <div class="pill" id="mphpill">mph: —</div>
+        </div>
+      </div>
+
+      <!-- Fixed-height panes that scroll inside -->
+      <div class="panes">
+        <div class="card pane">
+          <h4>UART Config + Console</h4>
+          <div class="pane-body">
+            <div class="trow" style="grid-template-columns:repeat(3, minmax(200px,1fr))">
+              <label><div>Target</div>
+                <select id="uart_side"><option value="A">A (/dev/ttyUSB0)</option><option value="B">B (/dev/ttyUSB1)</option></select>
+                <div></div><div class="rng">Select port</div>
+              </label>
+              <label><div>Read wait (ms)</div><input id="uart_read_wait_ms" type="number" step="10" value="50"><div></div><div></div></label>
+              <label><div>Total timeout (ms)</div><input id="uart_total_timeout_ms" type="number" step="10" value="500"><div></div><div></div></label>
+            </div>
+            <div class="trow" style="grid-template-columns:repeat(3, minmax(200px,1fr))">
+              <label><div>min_gate</div><input id="p_min_gate" type="number" step="1" value="0"><div></div><div></div></label>
+              <label><div>max_gate</div><input id="p_max_gate" type="number" step="1" value="5"><div></div><div></div></label>
+              <label><div>min_frames</div><input id="p_min_frames" type="number" step="1" value="2"><div></div><div></div></label>
+              <label><div>disappear_frames</div><input id="p_disappear_frames" type="number" step="1" value="10"><div></div><div></div></label>
+              <label><div>delay_ms</div><input id="p_delay_ms" type="number" step="10" value="300"><div></div><div></div></label>
+              <label><div>sensitivity</div><input id="p_sensitivity" type="number" step="1" value="3"><div></div><div></div></label>
+            </div>
+
+            <div class="mono" style="opacity:.8;margin:8px 0 4px">Hex template (placeholders allowed, e.g. <code>{min_gate:02X}</code>)</div>
+            <textarea id="uart_template" style="min-height:90px" placeholder="AA 55 07 00 {min_gate:02X} {max_gate:02X} {min_frames:02X} {disappear_frames:02X} {delay_ms:04X} {sensitivity:02X}"></textarea>
+
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+              <button class="smallbtn" onclick="uartApply()">Apply (Render + Send)</button>
+              <button class="smallbtn" onclick="uartSend()">Send Raw Hex</button>
+              <input id="uart_raw_hex" class="mono" type="text" placeholder="AA 55 ..." style="flex:1 1 320px">
+            </div>
+            <div id="uart_resp" class="monolist mono" style="margin-top:8px"></div>
+          </div>
+        </div>
+
+        <div class="card pane">
+          <h4>Raw Frame Inspector</h4>
+          <div class="pane-body">
+            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
+              <label class="hdr">Show <input id="raw_buf_len" type="number" step="5" value="40" style="width:78px;margin-left:6px"></label>
+              <button class="smallbtn" onclick="refreshRaw('A')">Refresh A</button>
+              <button class="smallbtn" onclick="refreshRaw('B')">Refresh B</button>
+            </div>
+            <div class="mono" style="opacity:.75;margin:6px 0">Newest at top. Each line: [time] len bytes : HEX…</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:100%">
+              <div><div class="mono" style="opacity:.85;margin-bottom:4px">A</div><div id="rawA" class="monolist"></div></div>
+              <div><div class="mono" style="opacity:.85;margin-bottom:4px">B</div><div id="rawB" class="monolist"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="elog" class="log mono"></div>
+    </div>
+
+    <!-- B -->
+    <div class="card">
+      <h3 style="margin:0 0 10px 0">B (right)</h3>
+      <div class="bar">
+        <div id="barB" class="fill" style="height:0%"></div>
+        <div id="thrB" class="line" style="bottom:0%"></div>
+        <div id="relB" class="line rel" style="bottom:0%"></div>
+      </div>
+      <div class="dim">trigger: <span id="stb">off</span> · offline: <span id="offB">no</span></div>
+
+      <div class="tuners" style="margin-top:10px">
+        <div class="trow">
+          <label><div>emaB</div><input id="emaB" type="range" min="0.01" max="0.60" step="0.01" value="0.07"><div id="emaB_val">0.07</div><div class="rng">0.01–0.60</div></label>
+          <label><div>emaDB</div><input id="emaDB" type="range" min="0.02" max="0.60" step="0.01" value="0.28"><div id="emaDB_val">0.28</div><div class="rng">0.02–0.60</div></label>
+        </div>
+        <div class="trow">
+          <label><div>deadB</div><input id="deadB" type="range" min="0" max="8" step="0.1" value="1.5"><div id="deadB_val">1.5</div><div class="rng">0–8</div></label>
+          <label><div>spike_factor_B</div><input id="spike_factor_B" type="range" min="0.0" max="8.0" step="0.5" value="0.0"><div id="spike_factor_B_val">0.0</div><div class="rng">0.0–8.0</div></label>
+        </div>
+        <div class="trow">
+          <label><div>trigB</div><input id="trigB" type="range" min="0" max="60" step="1" value="14"><div id="trigB_val">14</div><div class="rng">0–60</div></label>
+          <label><div>hysB</div><input id="hysB" type="range" min="0.35" max="0.95" step="0.01" value="0.65"><div id="hysB_val">0.65</div><div class="rng">0.35–0.95</div></label>
+        </div>
+        <div class="trow">
+          <label><div>holdB</div><input id="holdB" type="range" min="0.00" max="1.00" step="0.01" value="0.10"><div id="holdB_val">0.10</div><div class="rng">0.00–1.00</div></label>
+          <label><div>gainB</div><input id="gainB" type="range" min="1" max="8" step="0.1" value="4.5"><div id="gainB_val">4.5</div><div class="rng">1–8</div></label>
+        </div>
+        <div class="trow">
+          <label><div>sensor_timeoutB</div><input id="sensor_timeoutB" type="range" min="0" max="5000" step="50" value="0"><div id="sensor_timeoutB_val">0</div><div class="rng">0–5000</div></label>
+          <div style="display:flex;align-items:center"><button class="smallbtn" onclick="calib('B')">Calibrate B</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script>
+    const el = id => document.getElementById(id);
+
+    /* simple helpers */
+    function setVal(id,v){ const n=(typeof v==="number")?v:parseFloat(v); const out=el(id); if(out) out.textContent=isFinite(n)?(id.includes("alpha")||id.includes("ema")||id.includes("hys")||id.includes("refract")?n.toFixed(2):n):v; }
+
+    function postState(obj){
+      const pill=el("cfgstat"); if(pill) pill.textContent="Config: sending…";
+      return fetch("/state",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(obj)})
+        .then(r=>{ if(pill){ pill.textContent=r.ok?"Config: ok":"Config: error"; setTimeout(()=>pill.textContent="Config: —",900);} });
+    }
+    function wire(id,key=id){
+      const n=el(id); if(!n) return;
+      const h=()=>{ const v=(n.type==="checkbox")?!!n.checked:(n.type==="number"||n.type==="range")?parseFloat(n.value):n.value; const tag=el(key+"_val"); if(tag) setVal(key+"_val",v); postState({[key]:v}); drawThresholds(); };
+      n.addEventListener("input",h); n.addEventListener("change",h);
+    }
+
+    /* thresholds and bars */
+    function thrPercent(v,g){ return Math.max(0,Math.min(100,v*g)); }
+    function drawThresholds(){
+      const tA=parseFloat(el("trigA").value||"14"), hA=parseFloat(el("hysA").value||"0.65"), gA=parseFloat(el("gainA").value||"4.5");
+      const tB=parseFloat(el("trigB").value||"14"), hB=parseFloat(el("hysB").value||"0.65"), gB=parseFloat(el("gainB").value||"4.5");
+      el("thrA").style.bottom = thrPercent(tA,gA).toFixed(0)+"%";
+      el("relA").style.bottom = thrPercent(tA*hA,gA).toFixed(0)+"%";
+      el("thrB").style.bottom = thrPercent(tB,gB).toFixed(0)+"%";
+      el("relB").style.bottom = thrPercent(tB*hB,gB).toFixed(0)+"%";
+    }
+    function drawTick(d){
+      const gA=parseFloat(el("gainA").value||"4.5"), gB=parseFloat(el("gainB").value||"4.5");
+      const a=Math.max(0,Math.min(100,(d.da||0)*gA)), b=Math.max(0,Math.min(100,(d.db||0)*gB));
+      el("barA").style.height=a.toFixed(0)+"%";
+      el("barB").style.height=b.toFixed(0)+"%";
+      el("sta").textContent=d.ta?"ON":"off"; el("stb").textContent=d.tb?"ON":"off";
+      el("barA").classList.toggle("active",!!d.ta); el("barB").classList.toggle("active",!!d.tb);
+      if("mph" in d && d.mph!=null) el("mphpill").textContent="mph: "+(+d.mph).toFixed(1); else el("mphpill").textContent="mph: —";
+      if(d.t) el("last").textContent="Last: "+new Date(d.t*1000).toLocaleTimeString();
+      if(d.counts) applyCounts(d.counts);
+    }
+
+    /* icons */
+    let vehClass="car-side", incomingRight=true, useFA=false;
+    function detectFA(){const t=document.createElement("i");t.className="fa-solid fa-car-side";t.style.position="absolute";t.style.left="-9999px";document.body.appendChild(t);useFA=(getComputedStyle(t).fontFamily||"").toLowerCase().includes("font awesome");document.body.removeChild(t);}
+    function svgIcon(which){
+      if(which==="truck-monster"){return '<svg class="vehSVG" viewBox="0 0 120 60"><rect x="6" y="22" width="78" height="22" rx="4" fill="#3ea0ff"/><rect x="84" y="26" width="28" height="18" rx="3" fill="#74bdff"/><circle cx="28" cy="52" r="9" fill="#222"/><circle cx="28" cy="52" r="3.5" fill="#bbb"/><circle cx="80" cy="52" r="9" fill="#222"/><circle cx="80" cy="52" r="3.5" fill="#bbb"/></svg>'; }
+      return '<svg class="vehSVG" viewBox="0 0 120 60"><rect x="16" y="28" width="74" height="14" rx="7" fill="#25c06d"/><rect x="38" y="22" width="32" height="10" rx="3" fill="#4fe495"/><circle cx="36" cy="46" r="7" fill="#222"/><circle cx="36" cy="46" r="3" fill="#bbb"/><circle cx="86" cy="46" r="7" fill="#222"/><circle cx="86" cy="46" r="3" fill="#bbb"/></svg>';
+    }
+    function applyVehIcons(){
+      const L=el("vehL"), R=el("vehR"); if(!L||!R) return;
+      if(useFA){
+        L.innerHTML = '<i class="fa-solid fa-'+vehClass+' vehIcon" style="transform:scaleX(-1)"></i>';
+        R.innerHTML = '<i class="fa-solid fa-'+vehClass+' vehIcon"></i>';
+        // Fallback if this FA icon isn't present
+        const ok = R.firstChild && R.firstChild.offsetWidth > 0;
+        if(!ok){
+          L.innerHTML = svgIcon(vehClass);
+          R.innerHTML = svgIcon(vehClass);
+          if(L.firstChild) L.firstChild.style.transform="scaleX(-1)";
+        }
+      }else{
+        L.innerHTML=svgIcon(vehClass);
+        R.innerHTML=svgIcon(vehClass);
+        if(L.firstChild) L.firstChild.style.transform="scaleX(-1)";
+      }
+    }
+    function updateIncomingLabels(){
+      el("labelL").textContent = incomingRight ? "Outgoing" : "Incoming";
+      el("labelR").textContent = incomingRight ? "Incoming" : "Outgoing";
+    }
+
+    /* counts */
+    function applyCounts(c){ if(!c) return; el("cA2B").textContent=c.A2B??0; el("cB2A").textContent=c.B2A??0; el("cTotal").textContent=c.total??0; el("cOther").textContent=c.other??0; }
+    function resetCounts(){ fetch("/counts/reset",{method:"POST"}).then(r=>r.json()).then(j=>{ if(j.ok) applyCounts(j.counts); }); }
+
+    /* letters */
+    function setLetters(count, broken){
+      const nEl=el("letters_n"), bEl=el("letters_beam");
+      if(nEl) nEl.textContent = count ?? 0;
+      if(bEl){
+        if(broken){ bEl.textContent="BROKEN"; bEl.classList.add("beam-broken"); bEl.classList.remove("beam-ok"); }
+        else{ bEl.textContent="OK"; bEl.classList.add("beam-ok"); bEl.classList.remove("beam-broken"); }
+      }
+    }
+    function updateLettersFromSse(sse){
+      if(!sse || !sse.letter) return;
+      setLetters(sse.letter.count, sse.letter.beam_broken);
+    }
+    function resetLetters(){
+      fetch("/letters/reset",{method:"POST"}).then(r=>r.json()).then(j=>{
+        if(j && j.ok){ setLetters(0,false); }
+      }).catch(console.error);
+    }
+
+    /* init controls */
+    [
+      "emaA","emaB","emaDA","emaDB","deadA","deadB","trigA","trigB","hysA","hysB","holdA","holdB",
+      "minsep","min_dtAB","pairAB","min_dtBA","pairBA","simul_cutoff","refract","rate_max_eps",
+      "gainA","gainB","speed_enable","sensor_spacing_ft","speed_filter_alpha","mph_min","mph_max",
+      "sensor_timeoutA","sensor_timeoutB","uart_side","uart_read_wait_ms","uart_total_timeout_ms","raw_buf_len"
+    ].forEach(id=>wire(id,id));
+
+    const inc=el("incomingRight"); inc.addEventListener("change",e=>{ incomingRight=!!e.target.checked; updateIncomingLabels(); postState({incomingRight}); });
+
+    /* NEW: vehicle dropdown -> state + icon update */
+    const vehSel = el("vehSelect");
+    if (vehSel){
+      vehSel.addEventListener("change", e=>{
+        vehClass = e.target.value || "car-side";
+        applyVehIcons();
+        postState({ veh: vehClass });
+      });
+    }
+
+    detectFA(); applyVehIcons(); updateIncomingLabels(); drawThresholds();
+
+    /* SSE */
+    const evt=new EventSource("/stream");
+    evt.onmessage=ev=>{ try{
+      const d=JSON.parse(ev.data);
+      if("da" in d && "db" in d) drawTick(d);
+      updateLettersFromSse(d);
+    }catch(_){} };
+    evt.addEventListener("state",ev=>{ try{
+      const s=JSON.parse(ev.data);
+      Object.keys(s).forEach(k=>{ const n=el(k); if(n){ if(n.type==="checkbox") n.checked=!!s[k]; else n.value=s[k]; const tag=el(k+"_val"); if(tag) setVal(k+"_val",s[k]); } });
+      /* NEW: restore veh selection from backend state if present */
+      if ("veh" in s){
+        vehClass = s.veh || "car-side";
+        const vs = el("vehSelect"); if (vs) vs.value = vehClass;
+        applyVehIcons();
+      }
+      drawThresholds();
+    }catch(_){} });
+    evt.addEventListener("dir",ev=>{ try{ const e=JSON.parse(ev.data); const lg=el("elog"); const label=(incomingRight ? (e.dir==="AB"?"Incoming":"Outgoing") : (e.dir==="AB"?"Outgoing":"Incoming")); const line=document.createElement("div"); line.textContent=(e.dir==="AB"?"A→B ":"B→A ")+label+" ("+(e.dt??0).toFixed(2)+"s)"+(e.mph!=null?(" "+e.mph.toFixed(1)+" mph"):""); lg.prepend(line); while(lg.childNodes.length>30) lg.removeChild(lg.lastChild); }catch(_){} });
+
+    /* top buttons */
+    function bench(){ fetch("/bench",{method:"POST"}); }
+    function cars(){ fetch("/cars",{method:"POST"}); }
+    function saveCfg(){ const p=el("cfgstat"); p.textContent="Saving…"; fetch("/save",{method:"POST"}).then(()=>{ p.textContent="Config: saved"; setTimeout(()=>p.textContent="Config: —",1200); }); }
+    function loadCfg(){ const p=el("cfgstat"); p.textContent="Loading…"; fetch("/load",{method:"POST"}).then(r=>r.json()).then(j=>{ Object.keys(j.state||{}).forEach(k=>{ const n=el(k); if(n){ if(n.type==="checkbox") n.checked=!!j.state[k]; else n.value=j.state[k]; const tag=el(k+"_val"); if(tag) setVal(k+"_val",j.state[k]); } }); p.textContent="Config: loaded"; setTimeout(()=>p.textContent="Config: —",1200); drawThresholds(); }); }
+    function resetCfg(){ const p=el("cfgstat"); p.textContent="Resetting…"; fetch("/reset",{method:"POST"}).then(r=>r.json()).then(j=>{ Object.keys(j.state||{}).forEach(k=>{ const n=el(k); if(n){ if(n.type==="checkbox") n.checked=!!j.state[k]; else n.value=j.state[k]; const tag=el(k+"_val"); if(tag) setVal(k+"_val",j.state[k]); } }); p.textContent="Config: reset"; setTimeout(()=>p.textContent="Config: —",1200); drawThresholds(); }); }
+
+    /* UART helpers */
+    async function uartApply(){
+      const t=el("uart_template").value||"";
+      const side=(el("uart_side").value||"A");
+      const ctx={
+        min_gate:parseInt(el("p_min_gate").value||"0"),
+        max_gate:parseInt(el("p_max_gate").value||"5"),
+        min_frames:parseInt(el("p_min_frames").value||"2"),
+        disappear_frames:parseInt(el("p_disappear_frames").value||"10"),
+        delay_ms:parseInt(el("p_delay_ms").value||"300"),
+        sensitivity:parseInt(el("p_sensitivity").value||"3")
+      };
+      let rendered=t.replace(/\{([a-z_]+):([0-9A-Za-z]+)\}/g,(_,k,fmt)=>{
+        const v=ctx[k]; if(v==null) return "00";
+        const width=parseInt(fmt.replace(/[^0-9]/g,''))||2;
+        return v.toString(16).toUpperCase().padStart(width,'0').match(/.{1,2}/g).join(' ');
+      });
+      el("uart_raw_hex").value = rendered.trim();
+      uartSend(side);
+    }
+    async function uartSend(side){
+      try{
+        const raw=(el("uart_raw_hex").value||"").trim(); if(!raw) return;
+        const body={ side: (side||el("uart_side").value||"A"), hex: raw,
+          read_wait_ms: parseInt(el("uart_read_wait_ms").value||"50"),
+          total_timeout_ms: parseInt(el("uart_total_timeout_ms").value||"500") };
+        const r=await fetch("/uart/send",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+        const j=await r.json();
+        const box=el("uart_resp"); const now=new Date().toLocaleTimeString();
+        box.prepend(document.createTextNode(`[${now}] TX ${body.side}: ${raw}\n`));
+        (j.frames||[]).forEach(fr=> box.prepend(document.createTextNode(`[${fr.t_local}] len ${fr.len} : ${fr.hex}\n`)));
+      }catch(e){ console.error(e); }
+    }
+    async function refreshRaw(which){
+      try{
+        const n=parseInt(el("raw_buf_len").value||"40");
+        const j=await (await fetch(`/uart/raw?side=${which}&n=${n}`)).json();
+        const box=el(which==="A"?"rawA":"rawB"); box.textContent="";
+        (j.frames||[]).forEach(fr=> box.prepend(document.createTextNode(`[${fr.t_local}] len ${fr.len} : ${fr.hex}\n`)));
+      }catch(e){}
+    }
+
+    /* optional: if you have a resetView in your app state, keep it noop-safe */
+    function resetView(){ /* keep existing behavior if any on backend */ }
+  </script>
+
+  <!-- LD2410 widget -->
+  <div id="ld2410-widget">
+    <h4>LD2410 details</h4>
+    <table>
+      <thead><tr><th>Side</th><th>Moving</th><th>Still</th><th>Port</th></tr></thead>
+      <tbody>
+        <tr><td>A</td><td class="mono"><span id="ldA_md">—</span> cm · <span id="ldA_me">—</span></td><td class="mono"><span id="ldA_sd">—</span> cm · <span id="ldA_se">—</span></td><td class="mono"><span id="ldA_port">—</span> <span id="ldA_open" class="off">●</span></td></tr>
+        <tr><td>B</td><td class="mono"><span id="ldB_md">—</span> cm · <span id="ldB_me">—</span></td><td class="mono"><span id="ldB_sd">—</span> cm · <span id="ldB_se">—</span></td><td class="mono"><span id="ldB_port">—</span> <span id="ldB_open" class="off">●</span></td></tr>
+      </tbody>
+    </table>
+    <div class="hint">Updating from <code>/diag</code> every 500 ms.</div>
+  </div>
+
+  <script>
+    (function ld2410Widget(){
+      const $=id=>document.getElementById(id);
+      function setVals(prefix, data){
+        const ld=(data&&data.ld2410)||{};
+        const set=(id,val)=>{ const e=$(id); if(e) e.textContent=(val ?? "—"); };
+        set(prefix+"_md", ld.move_dist);
+        set(prefix+"_me", ld.move_energy);
+        set(prefix+"_sd", ld.still_dist);
+        set(prefix+"_se", ld.still_energy);
+        set(prefix+"_port", data?data.port:"—");
+        const dot=$(prefix+"_open"); if(dot){ if(data&&data.open){ dot.classList.remove("off"); dot.classList.add("ok"); } else { dot.classList.remove("ok"); dot.classList.add("off"); } }
+      }
+      function setLettersFromDiag(j){
+        try{
+          const L = j && j.readers && j.readers.letter;
+          if(!L) return;
+          const count = L.count ?? 0;
+          const broken = !!L.beam_broken;
+          const nEl=document.getElementById("letters_n");
+          const bEl=document.getElementById("letters_beam");
+          if(nEl) nEl.textContent = count;
+          if(bEl){
+            if(broken){ bEl.textContent="BROKEN"; bEl.classList.add("beam-broken"); bEl.classList.remove("beam-ok"); }
+            else{ bEl.textContent="OK"; bEl.classList.add("beam-ok"); bEl.classList.remove("beam-broken"); }
+          }
+        }catch(e){}
+      }
+      async function tick(){
+        try{
+          const r=await fetch("/diag?ts="+Date.now(),{cache:"no-store"});
+          if(!r.ok) throw new Error("HTTP "+r.status);
+          const j=await r.json();
+          const a=(j.readers&&j.readers.A)||{}, b=(j.readers&&j.readers.B)||{};
+          setVals("ldA",a); setVals("ldB",b);
+          if(j.readers && j.readers.counts) applyCounts(j.readers.counts);
+          setLettersFromDiag(j);
+        }catch(e){} finally{ setTimeout(tick,500); }
+      }
+      tick();
+    })();
+  </script>
+
+</body>
+</html>

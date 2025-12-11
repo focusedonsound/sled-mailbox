@@ -1,0 +1,790 @@
+ Home/IOT Projects/ESP32 Projects/Rd-03E mmWave Human detection Sensor with ESP32, Distance Measurement, Hand Gesture
+ESP32 Projects
+Rd-03E mmWave Human detection Sensor with ESP32, Distance Measurement, Hand Gesture
+Engr. Shahzada Fahad 4,073
+Last Updated on December 2, 2024 by Engr. Shahzada Fahad
+
+Table of Contents
+
+Rd-03E mmWave Radar:
+Rd-03E mmWave Human detection Sensor with ESP32, Distance Measurement, Hand Gesture-  The Rd-03E millimeter-Wave Human Detection Sensor by Ai-Thinker is going to blow your mind. Because, it can not only detect and identify moving and micro-moving human bodies, but it can also report real-time distances in centimeters with a high level of accuracy.
+
+Rd-03E mmWave Human detection Sensor
+
+allpcb circuit
+And that’s not all, it can also precisely detect hand gestures in designated area and report results in real time. This Module has the characteristics of strong real-time performance, high ranging accuracy, large ranging range, and flexible configuration of algorithm parameters.
+
+Today, we are going to use this powerful mmWave radar sensor with the ESP32 and let me tell you; the information and data I am going to share with you; you cannot find it anywhere else.
+
+Because, until today, no one has used this sensor with Arduino, ESP32, or ESP8266. So, don’t waste your time looking for its Arduino library; just sit back, relax, and read this article.
+
+
+
+
+
+Rd-03E Arduino Library:
+I also searched a lot for its library, but I could not find its Arduino library anywhere. At first, I thought I would use this radar module when someone made a library for it. But then I remembered the people who kept asking me in comments and emails if we can measure the distance of detected humans using the mmWave radar sensor. And the interesting thing is that with this sensor, we can not only measure distance but also control any load with hand gestures.
+
+If you remember, three months ago I published an article about the C1001 mmWave sensor, and many people really liked it. The C1001 millimeter-wave human body detection sensor can recognize human postures using a point cloud imaging algorithm. It can accurately detect if someone is lying down. It can precisely perform life detection, how long a person stays in one place, it can report if someone has fallen, and it can also detect body static state.
+
+But the C1001 mmWave radar could neither measure distance nor recognize hand gestures.
+
+So when I saw the RD-03E mmWave radar sensor, I immediately ordered this human detection sensor.
+
+Since this sensor does not come with an Arduino library, so I wrote my own custom code to read values directly from its registers. And in this article, I am going to walk you through everything step-by-step, from calibration to real-world applications.
+
+We will cover four practical examples to show you exactly how to get the most out of this mmWave sensor:
+
+Rd-03E mmWave Examples:
+In example #1, I will explain how to establish serial communication between the Rd-03E mmWave radar module and the ESP32 to read the firmware. If you understand how to read the firmware directly from the registers using specific commands, you will also be able to read other information.
+
+In example #2, I will explain how to read and write at the same time. You should not only learn how to read from a specific register but also know how to write or send a value to a specific register. This will be necessary for calibrating the sensor or changing certain values.
+
+In example #3, I will take things up a notch and control an LED based on human presence. If a person is within 3 meters, the LED will turn on automatically. Plus, we’ll use gesture control to manage additional loads, and you can easily adjust this distance to suit your needs.
+
+In example #4, finally, I will demonstrate how to use hand gestures for load control and take distance measurements for security alerts or to trigger other actions.
+
+Examples 1 and 2 are for advanced users who want to write their own libraries or change the default settings on the Rd-03E mmWave radar sensor. However, examples 3 and 4 are for absolute beginners.
+
+So, without any further delay, let’s get started!!!
+
+
+
+
+Amazon Links:
+ESP32 WiFi + Bluetooth Module (Recommended)
+
+Rd-03E mmWave Radar
+
+*Please Note: These are affiliate links. I may make a commission if you buy the components through these links. I would appreciate your support in this way!
+
+Rd-03EOverview:
+The Rd-03E Radar module consists of an Artificial Internet of things AIoT millimeter-wave radar chip S3KM111L.
+
+Rd-03E mmWave Human detection Sensor
+
+It is an integrated single-chip millimeter-wave sensor SoC “System on a chip” based on Frequency Modulated Continuous Wave “FMCW” radar transceiver technology.
+
+Rd-03E mmWave Human detection Sensor
+
+It has a high-performance one-transmitter-one-receiver microstrip antenna, a low-cost Microcontroller Unit “MCU”, and peripheral auxiliary circuits.
+
+
+
+
+Rd-03E Characteristics:
+Rd-03E mmWave Human detection Sensor
+
+Some of its key characteristics are
+
+It operates in 24GHz k band with up to 1 GHz modulation bandwidth per frequency.
+Detects precise human movement, small motions, distance, and gestures both indoors and outdoors
+Comes with tools to set detection distance and adjust sensitivity.
+Maximum detection range for moving humans is 6 meters and 3.5 meters for slight human movement.
+Offers high-precision distance measurement, with accuracy of ±5 cm from 30 to 350 cm, and ±5% from 350 to 600 cm.
+Detection range covers ±20° horizontally and ±45° vertically for sensing human movement.
+Gesture recognition range spans ±20° horizontally and ±40° vertically.
+Supports UART communication, enabling easy adjustment of radar settings via the serial port.
+Operates on a single 5V power supply
+Suitable for wall mounting
+ Typical application scenarios are
+
+Smart home appliances
+Intelligent business
+Smart Security and
+Smart lighting
+Rd-03E Main Parameters:
+
+The Rd-03E model comes in a DIP-5 package with an on-board antenna and operates within a frequency range of 24.0 to 24.25 GHz. It is built for durability, with an operating temperature range of -40℃ to 85℃, and it can be stored in environments as low as -40℃ and up to 125℃ with humidity under 90% RH. The sensor supports a 5V power supply with a current requirement of at least 200mA. Communication is facilitated through a UART interface, with a default rate set at 256,000 bps.
+
+Model: Rd-03E
+
+Package: DIP-5
+
+Antenna: On-board antenna
+
+Frequency: 24G~24.25GHz
+
+Operation Temperature: -40℃~85℃
+
+Storage environment: -40℃~125℃,<90%RH
+
+Power Supply: Supportvoltage5V，powersupplycurrent≥200mA
+
+Interfaces: UART
+
+UART Rate: Default 256000 bps
+
+Size: 28.0*24.0(±0.2)mm
+
+
+
+
+Rd-03E Installation and Orientation:
+For the precise distance measurement, the Rd-03E mmWave Radar module should be installed 1.3m above the floor.
+
+Rd-03E mmWave Human detection Sensor
+
+You can see the front and back sides of the mmWave radar module on the screen.
+
+Rd-03E mmWave Human detection Sensor
+
+For the precise distance measurement and recognition of the Hand Gestures, the sensor orientation should be correct. While the radar module front side is facing towards the detection area and the headers are on the right side.
+
+Rd-03E mmWave Human detection Sensor
+
+The positive and negative directions are azimuth angles, and the up and down directions are pitch angles.
+
+The range for detecting moving humans covers ±20° horizontally and ±45° vertically, with a distance range of 0.3 to 6 meters.
+
+For detecting slight human movements, the range is ±20° horizontally and ±45° vertically, with a detection distance of 0.3 to 3.5 meters.
+
+Rd-03E mmWave Human detection Sensor
+
+For the Gesture recognition, the module should be slightly tilted. As per the manufacturer it should be installed at an angle of 45°.
+
+Rd-03E mmWave Human detection Sensor
+
+The motion recognition range is ±20° horizontally and ±40° vertically, with a detection distance of 0.3 to 2.2 meters.
+
+For gesture recognition and micro-motion detection, the range is ±30° horizontally and ±40° vertically, with a detection distance of 0.5 to 1 meter.
+
+Rd-03E mmWave Human detection Sensor
+
+
+
+
+
+Rd-03E Pin Definition:
+It has a total of 5 pins labeled VCC, GND, OT1, RX, and OT2.
+
+Connect VCC to 5 volts.
+
+Connect GND to the Controller’s GND. Make sure all the grounds are connected together.
+
+OT1 is UART_TX
+
+RX is UART_RX
+
+The Operating range of TX and RX pins is 0 to 3.3 Volts; so you can safely use this Radar module with 3.3V compatible controller boards.                                             
+
+OT2 pin is reserved for future use.
+
+So, that’s all about the Rd-03E mmWave Sensor overview, installation, and pin definitions.
+
+Rd-03E Interfacing with ESP32:
+I connected the Rd-03E mmWave Radar module to the ESP32. These are the minimal connections; we need to get started with this module.
+
+Anyway, connect the 5V and GND pins of the ESP32 to the VCC and GND pins on the millimeter-wave Radar module.
+
+Connect the OT1 and RX to the ESP32 GPIOs 16 and 17 respectively; I am using Serial Port 1 on the ESP32. For the connections, you can follow this circuit diagram.
+
+Rd-03E mmWave Human detection Sensor
+
+Now, let’s go ahead and start with our first example, that is reading the Radar Firmware version. If you understand how to read the firmware directly from the registers using specific commands, you will also be able to read other information.
+
+You can only read data from a register or write a value to it when you know the module’s transmission data protocol. And this is only possible when you study the module’s datasheet.
+
+To read the Firmware Version; we need to send this command to the Radar module.
+
+Rd-03E mmWave Human detection Sensor
+
+If everything goes well, the Rd-03E module will reply with this acknowledgement data that includes the firmware version. On the screen you can see the return value format. Let’s go ahead and take a look at the programming.
+
+
+
+
+Reading the Firmware Version:
+#include <HardwareSerial.h>
+ 
+#define RX_PIN 16  
+#define TX_PIN 17  
+ 
+HardwareSerial radarSerial(1);  // Use Serial1 for the RD-03E radar module
+ 
+void sendCommand(uint8_t *command, size_t length) {
+    radarSerial.write(command, length);
+}
+ 
+void readFirmwareVersion() {
+    uint8_t firmwareCommand[] = {0xFD, 0xFC, 0xFB, 0xFA, 0x02, 0x00, 0x00, 0x00, 0x04, 0x03, 0x02, 0x01};
+    sendCommand(firmwareCommand, sizeof(firmwareCommand));
+ 
+    delay(100);  // Adjust if needed
+ 
+    bool versionDetected = false;
+    while (radarSerial.available()) {
+        // Check for frame header
+        if (radarSerial.read() == 0xFD && radarSerial.read() == 0xFC && radarSerial.read() == 0xFB && radarSerial.read() == 0xFA) {
+            
+            radarSerial.read(); // Skip intra-frame length byte 1
+            radarSerial.read(); // Skip intra-frame length byte 2
+ 
+            if (radarSerial.read() == 0x00 && radarSerial.read() == 0x01) { // ACK check
+                // Firmware version bytes
+                uint8_t major = radarSerial.read();
+                uint8_t minor = radarSerial.read();
+                uint8_t patch = radarSerial.read();
+ 
+                Serial.printf("Firmware Version: %d.%d.%d\n", major, minor, patch);
+                versionDetected = true;
+                break;  // Exit loop once version is read
+            }
+        }
+    }
+ 
+    if (!versionDetected) {
+        Serial.println("Firmware version not found in the response.");
+    }
+}
+ 
+ 
+ 
+void setup() {
+    Serial.begin(115200);
+    radarSerial.begin(256000, SERIAL_8N1, RX_PIN, TX_PIN);
+    delay(1000);
+}
+ 
+ 
+void loop() {
+ 
+    Serial.println("Reading RD-03E Firmware Version...");
+    readFirmwareVersion();
+    delay(1000);
+    
+}
+Code explanation:
+
+The program uses the HardwareSerial library. Let me tell you, you don’t need to install this library, because its automatically installed when you install the ESP32 board in the Arduino IDE. So, make sure the ESP32 boards are installed in the Arduino IDE. For guidance, you can read my getting started article on the ESP32, where I explain how to add the ESP32 Board Manager URL link in the Arduino IDE and install the entire ESP32 boards package.
+
+#define RX_PIN 16 
+ 
+#define TX_PIN 17
+The RX_PIN and TX_PIN are set to 16 and 17, which are the pins the ESP32 will use to receive and transmit data to the radar module.
+
+HardwareSerial radarSerial(1);
+The radarSerial object is created to handle communication specifically for the radar module, using Serial1 on the ESP32.
+
+void sendCommand(uint8_t *command, size_t length) {
+ 
+    radarSerial.write(command, length);
+ 
+}
+The sendCommand function is used to send a command to the radar module. It takes in an array of command data and sends it to the radar.
+
+The readFirmwareVersion() function sends a specific command to request the radar module’s firmware version.
+
+Rd-03E mmWave Human detection Sensor
+
+uint8_t firmwareCommand[] = {0xFD, 0xFC, 0xFB, 0xFA, 0x02, 0x00, 0x00, 0x00, 0x04, 0x03, 0x02, 0x01};
+ 
+    sendCommand(firmwareCommand, sizeof(firmwareCommand));
+ 
+    delay(100);  // Adjust if needed
+Then there is a delay of 100ms milliseconds to allow the module to respond with the acknowledgment data.
+
+    if (radarSerial.read() == 0xFD && radarSerial.read() == 0xFC && radarSerial.read() == 0xFB && radarSerial.read() == 0xFA) {
+ 
+           
+ 
+            radarSerial.read(); // Skip intra-frame length byte 1
+ 
+            radarSerial.read(); // Skip intra-frame length byte 2
+ 
+ 
+ 
+ 
+            if (radarSerial.read() == 0x00 && radarSerial.read() == 0x01) { // ACK check
+ 
+                // Firmware version bytes
+ 
+                uint8_t major = radarSerial.read();
+ 
+                uint8_t minor = radarSerial.read();
+ 
+                uint8_t patch = radarSerial.read();
+ 
+ 
+ 
+ 
+                Serial.printf("Firmware Version: %d.%d.%d\n", major, minor, patch);
+ 
+                versionDetected = true;
+ 
+                break;  // Exit loop once version is read
+ 
+            }
+ 
+        }
+It then checks for the frame header, identified by specific bytes 0xFD, 0xFC, 0xFB, and 0xFA. If it finds this header, it skips some bytes and then checks if an acknowledgment (ACK) is present.
+
+Rd-03E mmWave Human detection Sensor
+
+If the ACK is correct, if its 0x00 and 0x01 as per the acknowledgment data, the program reads the firmware version (in major, minor, and patch format) and prints it to the Serial Monitor. It’s that simple.
+
+
+
+
+Output:
+
+Rd-03E mmWave Human detection Sensor
+
+This is how easily you can read a register if you know about the transmission data protocols and frames format. Now, let’s go ahead and take a look at another example.
+
+Rd-03E Calibration:
+#include <HardwareSerial.h>
+ 
+#define RX_PIN 16  
+#define TX_PIN 17  
+ 
+HardwareSerial radarSerial(1);  // Use Serial1 for the RD-03E radar module
+ 
+void sendCommand(uint8_t *command, size_t length) {
+    radarSerial.write(command, length);
+}
+ 
+void enableConfiguration() {
+    uint8_t enableCommand[] = {0xFD, 0xFC, 0xFB, 0xFA, 0x04, 0x00, 0xFF, 0x00, 0x01, 0x00, 0x04, 0x03, 0x02, 0x01};
+    sendCommand(enableCommand, sizeof(enableCommand));
+    delay(100);
+}
+ 
+void endConfiguration() {
+    uint8_t endCommand[] = {0xFD, 0xFC, 0xFB, 0xFA, 0x02, 0x00, 0xFE, 0x00, 0x04, 0x03, 0x02, 0x01};
+    sendCommand(endCommand, sizeof(endCommand));
+    delay(100);
+}
+ 
+ 
+void setDistanceCalibration(int32_t calibrationValue) {
+    // Step 1: Enable Configuration
+    enableConfiguration();
+    delay(100);
+    Serial.print("Enable Configuration ACK: ");
+    bool enableAckDetected = false;
+ 
+    // Check for Enable ACK (0xFF 0x01)
+    while (radarSerial.available()) {
+        uint8_t byte = radarSerial.read();
+        if (byte == 0xFD && radarSerial.read() == 0xFC) {
+            enableAckDetected = true;
+            Serial.printf("0x%02X ", byte);
+        } else if (enableAckDetected) {
+            Serial.printf("0x%02X ", byte);
+            if (byte == 0x01) break;
+        }
+    }
+    Serial.println();
+ 
+    if (!enableAckDetected) {
+        Serial.println("Enable Configuration ACK not received.");
+        return;  // Exit if Enable ACK not received
+    }
+ 
+    // Step 2: Send Distance Calibration Command
+    uint8_t calibrationCommand[] = {
+        0xFD, 0xFC, 0xFB, 0xFA,  // Frame Header
+        0x08, 0x00,              // Intra-frame Data Length (8 bytes follow)
+        0x72, 0x00,              // Command Word for Distance Calibration
+        0x00, 0x00,              // Distance Calibration Parameter Number
+        (uint8_t)(calibrationValue & 0xFF),         // Calibration Value byte 1
+        (uint8_t)((calibrationValue >> 8) & 0xFF),  // Calibration Value byte 2
+        (uint8_t)((calibrationValue >> 16) & 0xFF), // Calibration Value byte 3
+        (uint8_t)((calibrationValue >> 24) & 0xFF), // Calibration Value byte 4
+        0x04, 0x03, 0x02, 0x01   // End of Frame
+    };
+    
+    sendCommand(calibrationCommand, sizeof(calibrationCommand));
+    delay(200);
+ 
+    // Step 3: Read and confirm Distance Calibration Response
+    Serial.print("Distance Calibration ACK: ");
+    bool calibrationAckDetected = false;
+ 
+    while (radarSerial.available()) {
+        uint8_t byte = radarSerial.read();
+        Serial.printf("0x%02X ", byte);
+        if (byte == 0x01) {  // Confirm ACK end
+            calibrationAckDetected = true;
+            break;
+        }
+    }
+    Serial.println();
+ 
+    if (calibrationAckDetected) {
+        Serial.println("Distance Calibration Command successful.");
+    } else {
+        Serial.println("Distance Calibration ACK not received.");
+    }
+ 
+    // Step 4: End Configuration
+    endConfiguration();
+    delay(100);
+    Serial.println("Configuration Ended.");
+}
+ 
+ 
+void setup() {
+  
+    Serial.begin(115200);
+    radarSerial.begin(256000, SERIAL_8N1, RX_PIN, TX_PIN);
+    delay(1000);
+ 
+}
+ 
+ 
+ 
+void loop() {
+ 
+ 
+    // Set distance calibration (example value of 100)
+    Serial.println("Setting Distance Calibration...");
+    setDistanceCalibration(100);
+    
+    Serial.println("");
+    delay(4000);
+ 
+}
+
+
+
+Code Explanation:
+
+The purpose of this program is to send a calibration value to the Rd-03E mmWave Radar module. If you understand this code, then you can write to any other register in the Radar module. You can see that this part of the code is exactly the same.
+
+According to the datasheet, except for reading a frame of data that includes distance information and gesture information, and the Firmware Version Command, any other commands issued to the radar can only be executed after the enable configuration command is issued; otherwise, they are invalid.
+
+Similarly, if you need to issue other commands again, you must send the End Configuration Command first.
+
+void enableConfiguration() {
+ 
+    uint8_t enableCommand[] = {0xFD, 0xFC, 0xFB, 0xFA, 0x04, 0x00, 0xFF, 0x00, 0x01, 0x00, 0x04, 0x03, 0x02, 0x01};
+ 
+    sendCommand(enableCommand, sizeof(enableCommand));
+ 
+    delay(100);
+ 
+}
+ 
+void endConfiguration() {
+ 
+    uint8_t endCommand[] = {0xFD, 0xFC, 0xFB, 0xFA, 0x02, 0x00, 0xFE, 0x00, 0x04, 0x03, 0x02, 0x01};
+ 
+    sendCommand(endCommand, sizeof(endCommand));
+ 
+    delay(100);
+ 
+}
+That’s why I defined these two functions. As per the datasheet, to enable the configuration,
+
+Rd-03E mmWave Human detection Sensor
+
+We need to send enableConfiguration() command to the Radar module, and
+
+Rd-03E mmWave Human detection Sensor
+
+we also need to send endConfiguration() command to end the configuration.
+
+The setDistanceCalibration() function is designed to send a calibration value to a radar module so that it can be accurately adjusted for measuring distances.
+
+The function first enables configuration mode on the radar module by calling enableConfiguration() function.
+
+Rd-03E mmWave Human detection Sensor
+
+It waits for 100ms milli-seconds and then checks if an acknowledgment is received; indicated by specific bytes in the response.
+
+If the “Enable ACK” is not detected, the function stops here, as configuration mode wasn’t successfully enabled.
+
+If configuration mode is enabled, we send this command for distance calibration.
+
+Rd-03E mmWave Human detection Sensor
+
+The command includes a “frame header” and the calibration value split into four bytes so the radar module can understand it.
+
+The command is sent to the radar, and then the function waits briefly for the module to process it.
+
+After sending the calibration command, the function checks if the radar module responds with an acknowledgment for distance calibration.
+
+Rd-03E mmWave Human detection Sensor
+
+If the correct acknowledgment byte (0x01) is found, it prints a success message; otherwise, it notes that the “acknowledgment” wasn’t received.
+
+Once calibration is complete, the function ends configuration mode by calling endConfiguration.
+
+
+
+
+
+Output:
+
+Rd-03E mmWave Human detection Sensor
+
+On the serial monitor, you can see the Enable Configuration acknowledgment, Distance Calibration acknowledgement. So, we successfully implemented the distance calibration. Now, let’s go ahead and take a look at the 3rd example.
+
+Reading Distance and Gesture data:
+// Define the onboard LED pin
+int onboard_led = 5;
+ 
+// Radar data buffer
+uint8_t RX_BUF[64] = {0};  
+uint8_t RX_count = 0;      
+uint8_t RX_temp;           
+uint16_t range;
+ 
+// Timing variables
+unsigned long lastDetectionTime = 0;
+unsigned long detectionStartTime = 0; // Tracks when target is first detected
+const unsigned long timerDelay = 5000; // 5 seconds delay
+const unsigned long confirmDelay = 3000; // 3 seconds delay
+bool targetInRange = false;
+bool ledActivated = false;
+ 
+void setup() {
+  // Initialize LED pin as output
+  pinMode(onboard_led, OUTPUT);
+  digitalWrite(onboard_led, HIGH);
+  // Initialize serial communications
+  Serial.begin(115200);
+  
+  // Start Serial1 on pins 16 (RX) and 17 (TX) at 256000 baud rate
+  Serial1.begin(256000, SERIAL_8N1, 16, 17);
+}
+ 
+void loop() {
+  // Check for data from Serial1
+  while (Serial1.available()) {
+    RX_temp = Serial1.read(); // Read a byte from Serial1
+    RX_BUF[RX_count++] = RX_temp; // Store it in the buffer
+ 
+    // Check if we have a valid packet (minimum 5 bytes needed)
+    if (RX_count >= 5) { // Ensure we have enough bytes to check for a complete frame
+      // Check for valid frame: AA + distance (2 bytes) + gesture (1 byte) + 55
+      if (RX_BUF[0] == 0xAA && RX_BUF[RX_count - 1] == 0x55) {
+        // Extract distance and gesture
+        range = (RX_BUF[2] << 8) | RX_BUF[1]; // Combine distance bytes in little-end format
+        uint8_t gesture = RX_BUF[3]; // Gesture information (1 byte)
+ 
+        // Convert distance to meters
+        float distanceInMeters = range / 100.0; // Convert cm to meters
+ 
+        // Output distance in meters and gesture for debugging
+        Serial.printf("Distance: %.2f m, Gesture: 0x%02X\n", distanceInMeters, gesture);
+        if (gesture == 0x01 )
+        {
+          Serial.println("Gesture detected");
+          delay(2000);
+        }
+        // Check if target is within the specified range
+        if (distanceInMeters >= .7 && distanceInMeters <= 3) {
+          if (!targetInRange) {
+            detectionStartTime = millis(); // Start the 3-second confirmation timer
+          }
+          targetInRange = true; // Set target detected to true
+        } else {
+          targetInRange = false; // Target out of range
+        }
+ 
+        // Reset buffer and count after processing a packet
+        memset(RX_BUF, 0x00, sizeof(RX_BUF));
+        RX_count = 0;
+      } else {
+        // If we receive an unexpected byte, we can reset the buffer
+        if (RX_count >= sizeof(RX_BUF)) {
+          memset(RX_BUF, 0x00, sizeof(RX_BUF));
+          RX_count = 0;
+        }
+      }
+    }
+  }
+ 
+  // Control LED based on detection confirmation and timer
+  if (targetInRange && (millis() - detectionStartTime >= confirmDelay)) {
+    digitalWrite(onboard_led, LOW); // Turn on LED if target is confirmed for 3 second
+    lastDetectionTime = millis(); // Reset the 5-second timer
+    ledActivated = true;
+  } else if (millis() - lastDetectionTime >= timerDelay && ledActivated) {
+    digitalWrite(onboard_led, HIGH); // Turn off LED if target is out of range for 5 seconds
+    ledActivated = false;
+  }
+ 
+  // Optional: Add a small delay to avoid flooding the Serial Monitor
+  //delay(100);
+}
+
+
+
+Code Explanation:
+
+This program continuously reads radar data, checks if a target is detected within a specific range, and turns the onboard LED on or off accordingly. And prints the message “Gesture detected” whenever hand gesture is detected. I will practically demonstrate this in a minute.
+
+Anyway, let’s move to the loop function to explain how to read the distance and gesture data.
+
+The program reads data from the radar module through Serial1.
+
+Each data byte goes into a buffer (RX_BUF), and the count of received bytes is tracked by RX_count.
+
+Once there are at least 5 bytes, the program checks if the data format is valid by looking at specific values in the buffer.
+
+Rd-03E mmWave Human detection Sensor
+
+A valid packet starts with 0xAA, contains a distance value (two bytes), a gesture value (one byte), and ends with 0x55.
+
+If a valid packet is detected, we extract the distance in centimeters and convert it to meters.
+
+We also extract the gesture value.
+
+The program then prints the distance in meters and the gesture code for debugging.
+
+If gesture 0x01 is detected, a message “Gesture detected” is printed with a 2-second delay.
+
+If the distance is between 0.7 and 3 meters, the program sets a timer to confirm the target’s presence for at least 3 second.
+
+If the target is outside this range, targetInRange is set to false, meaning no target is detected.
+
+If the target is in range for over 3 seconds, the LED is turned on. I did this to avoid false triggering.
+
+The program keeps resetting the 5-second timer to keep the LED ON as long as the target remains within range. If the person walks out of that area for 5 seconds the LED is turned OFF.
+
+
+
+
+Practical demonstration:
+For the practical demonstration watch my video tutorial.
+
+The great thing about the RD-03E mmWave Radar module is that you can set up a specific area to detect. I want the light to stay ON as long as I’m in this specific area of the room, and as soon as I leave, the light should turn OFF. This sensor can detect humans up to 6 meters away, so you can set the detection range as you like.
+
+Rd-03E mmWave Human detection Sensor
+
+Anyway, as you can see, the LED does not turn OFF as long as I am in this area. This is possible because of the 5-second timer delay. Even if there’s a tiny movement, the timer resets, keeping the light ON. You can use this setup for staircases, lawns, corridors, toilets, kitchens – anywhere, whether indoors or outdoors.
+
+So, as you can see, I have been in this area for a while, and the LED hasn’t turned OFF even once.
+
+Now, I am going to walk out of this area. The controller will confirm for 5 seconds that I have really left the area, and then it will turn OFF the LED.
+
+Rd-03E mmWave Human detection Sensor
+
+As you saw, the LED has turned OFF. Now, it will stay OFF until I return to that area. But the controller won’t turn the LED ON immediately; instead, it will check for movement for 3 seconds first, and then turn the LED ON. I have tested this setup many times, and it performs exceptionally well every time.
+
+
+
+
+Now, let’s go ahead and check the Hand gesture feature.
+
+Rd-03E mmWave Human detection Sensor
+
+This radar module’s hand gesture recognition feature is also very accurate. You should be within a distance of 0.5 to 1 meter from the radar. If you simply move your hand up or down normally, it won’t detect it as a hand gesture.
+
+But if you swing your hand from bottom to top within 1.5 seconds, then it will recognize it as a hand gesture.
+
+Rd-03E mmWave Human detection Sensor
+
+This feature is perfect for situations where you don’t want to physically touch a switch.
+
+Now, let’s go ahead and take a look at the 4th example.
+
+
+
+
+
+Control an LED with a Hand Gesture:
+#include <HardwareSerial.h>
+ 
+#define RX_PIN 16  // Replace with your actual RX pin
+#define TX_PIN 17  // Replace with your actual TX pin
+ 
+HardwareSerial radarSerial(1);  // Use Serial1 for the RD-03E radar module
+ 
+#define LED_PIN 5  // Define LED pin
+ 
+bool ledState = false;  // Track the LED state
+ 
+ 
+void setup() {
+    Serial.begin(115200);
+    radarSerial.begin(256000, SERIAL_8N1, RX_PIN, TX_PIN);
+    delay(1000);
+ 
+    pinMode(LED_PIN, OUTPUT);  // Set LED pin as output
+    digitalWrite(LED_PIN, HIGH); // Initialize LED to off
+}
+ 
+void readDistanceAndGesture() {
+    static bool headerDetected = false;
+    static uint8_t frameData[5];
+    int byteIndex = 0;
+ 
+    while (radarSerial.available()) {
+        uint8_t byte = radarSerial.read();
+ 
+        if (!headerDetected && byte == 0xAA) {
+            headerDetected = true;
+            frameData[0] = byte;
+            byteIndex = 1;
+        } else if (headerDetected) {
+            frameData[byteIndex++] = byte;
+ 
+            if (byteIndex == 5) {
+                headerDetected = false;
+ 
+                if (frameData[4] == 0x55) {
+                    uint16_t distance = frameData[1] | (frameData[2] << 8);
+                    uint8_t gesture = frameData[3];
+ 
+                    if (gesture == 0x01) {  // Toggle LED on gesture detection
+                        ledState = !ledState;  // Toggle the LED state
+                        digitalWrite(LED_PIN, ledState ? HIGH : LOW);  // Update LED
+                        Serial.print("LED is now ");
+                        Serial.println(ledState ? "OFF" : "ON");
+                    }
+ 
+                    Serial.print("Distance: ");
+                    Serial.print(distance);
+                    Serial.print(" cm");
+                    Serial.print("     ");
+                    Serial.print("LED is ");
+                    Serial.println(ledState ? "OFF" : "ON");
+                } else {
+                    Serial.println("Invalid frame received (Footer mismatch).");
+                }
+            }
+        }
+    }
+}
+ 
+void loop() {
+    readDistanceAndGesture();
+    delay(100);
+}
+ 
+
+I have made some modifications to the code. This time, I will control the LED using hand gestures, and I will print the measured distance in centimeters. I have already uploaded this program and now let’s watch this in action.
+
+Rd-03E mmWave Human detection Sensor
+
+On the serial monitor, you can see the measured distance in centimeters along with the LED ON/OFF status.
+
+Let’s control the LED using Hand gesture.
+
+Rd-03E mmWave Human detection Sensor
+
+It’s working perfectly. In the upcoming article, I will use this in an IoT-based project where we will monitor intruders and also control 110/220Vac loads. So, that’s all for now.
+
+You can also read my article on the Rd-03D mmWave Radar Module designed for tracking multi-humans with precise distance positioning.
+
+
+
+
+Watch Video Tutorial:
+Rd-03E mmWave Human detection Sensor with ESP32, Distance Measurement, Hand Gesture
+Discover more from Electronic Clinic
+Subscribe to get the latest posts sent to your email.
+
+Type your email…
+Type your email…
+
+Subscribe
+
+ ShareFacebook X LinkedIn Pinterest Reddit Skype Messenger Share via Email Print
+Engr. Shahzada Fahad
+Engr. Shahzada Fahad is an Electrical Engineer with over 15 years of hands-on experience in electronics design, programming, and PCB development. He specializes in microcontrollers (Arduino, ESP32, STM32, Raspberry Pi), robotics, and IoT systems. He is the founder and lead author at Electronic Clinic, dedicated to sharing practical knowledge.

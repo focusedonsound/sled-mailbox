@@ -1,0 +1,418 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>RD-03E Radar Scope</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root { --bg:#101418; --card:#161c22; --fg:#e7edf3; --muted:#9fb3c8; --grid:#1e2732; --canvasH:180px; }
+  html,body { margin:0; padding:0; height:100%; background:var(--bg); color:var(--fg); font-family: system-ui, Arial, sans-serif; }
+  .container { max-width: 1100px; margin: 10px auto; padding: 0 12px; overflow-x: hidden; }
+  h1 { margin: 0 0 8px; font-size: 18px; }
+  .card { background:var(--card); border-radius:12px; padding:10px; box-shadow: 0 1px 8px rgba(0,0,0,0.3); }
+  .status { display:flex; gap:10px; align-items:center; flex-wrap:wrap; position:relative; z-index:2; }
+  .badge { padding:4px 8px; border-radius:999px; background:#243042; }
+  small { color:var(--muted); }
+  .controls { margin-left:auto; display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  .controls select, .controls label { font-size: 12px; color: var(--muted); }
+  .controls button { font-size: 12px; padding:4px 8px; border-radius:8px; border:1px solid #2a3544; background:#18202a; color:#e7edf3; cursor:pointer; }
+
+  /* Live dot */
+  .live { display:flex; align-items:center; gap:6px; margin-right:6px; }
+  .dot { width:8px; height:8px; border-radius:50%; background:#6b7280; box-shadow:0 0 0 0 rgba(0,200,0,0.4); transition:all 200ms; }
+  .dot.ok { background:#22c55e; box-shadow:0 0 10px 2px rgba(34,197,94,0.35); }
+
+  /* Tabs */
+  .tabs { display:flex; gap:6px; margin:10px 0; flex-wrap:wrap; position:relative; z-index:2; }
+  .tabbtn { padding:6px 10px; border-radius:8px; border:1px solid #2a3544; background:#18202a; color:#e7edf3; cursor:pointer; font-size:12px; }
+  .tabbtn.active { background:#243042; }
+  .tab { display:none; }
+  .tab.active { display:block; }
+
+  /* Grid + fixed-height chart containers */
+  .row { display:grid; grid-template-columns: 1fr; gap: 12px; }
+  @media (min-width: 980px) { .row.cols-2 { grid-template-columns: 1fr 1fr; } }
+  .chartbox { position: relative; height: var(--canvasH); min-height: var(--canvasH); }
+  .chartbox > canvas { position:absolute; inset:0; width:100% !important; height:100% !important; display:block !important; }
+
+  /* Event tape */
+  .tape { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:12px; color:#cbd6e2; line-height:1.35; max-height: calc(var(--canvasH) + 60px); overflow:auto; }
+
+  /* Coach tab */
+  .coachGrid { display:grid; grid-template-columns: 220px 1fr; gap:14px; align-items:stretch; }
+  @media (max-width: 780px) { .coachGrid { grid-template-columns: 1fr; } }
+  .meters { display:grid; grid-template-columns: 1fr 1fr; gap:12px; }
+  .meter { background:#0f151c; border:1px solid #253244; border-radius:10px; padding:10px; position:relative; height:280px; }
+  .meter h4 { margin:0 0 6px; font-weight:600; }
+  .barWrap { position:absolute; left:10px; right:10px; top:36px; bottom:10px; border-left:1px dashed #2b394d; border-right:1px dashed #2b394d; }
+  .bar { position:absolute; left:18%; right:18%; bottom:0; height:0%; background:linear-gradient(180deg, #f5b05f, #f59f00); border-radius:6px; box-shadow:0 0 10px rgba(245,159,0,0.4); transition:height 60ms linear; }
+  .thresh { position:absolute; left:0; right:0; height:1px; background:#8f6; opacity:0.9; }
+  .thresh.off { background:#6bf; }
+  .scale { position:absolute; left:0; right:0; bottom:0; display:flex; justify-content:space-between; font-size:10px; color:#9fb3c8; }
+  .legendRow { display:flex; gap:12px; align-items:center; font-size:12px; color:#9fb3c8; }
+  .lg { width:10px; height:2px; background:#8f6; display:inline-block; }
+  .lg2 { background:#6bf; }
+  .bigArrow { display:flex; align-items:center; justify-content:center; height:100%; font-size:96px; user-select:none; }
+  .bigArrow .dir { opacity:0.2; }
+  .bigArrow.inbound  .dirA { opacity:0.15; }
+  .bigArrow.inbound  .dirB { opacity:1; color:#7ed957; text-shadow:0 0 16px rgba(126,217,87,0.5); }
+  .bigArrow.outbound .dirB { opacity:0.15; }
+  .bigArrow.outbound .dirA { opacity:1; color:#7ed957; text-shadow:0 0 16px rgba(126,217,87,0.5); }
+  .coachTips { font-size:12px; color:#cbd6e2; line-height:1.4; }
+
+  /* Tuning panel */
+  #tuneCard input[type=range]{ width:160px; }
+  #tuneCard button{ font-size:12px; padding:6px 8px; border:1px solid #2a3544; background:#18202a; color:#e7edf3; border-radius:8px; cursor:pointer; }
+</style>
+</head>
+<body>
+  <div class="container">
+    <h1>RD-03E Radar Scope <small>(A=__PORT_A__ B=__PORT_B__)</small></h1>
+
+    <div class="card status">
+      <div class="live"><span id="dot" class="dot"></span><small id="liveText">Live</small></div>
+      <div>Last: <span id="dir" class="badge">—</span></div>
+      <div>Δt: <span id="dt">—</span></div>
+      <div>In: <span id="in">0</span></div>
+      <div>Out: <span id="out">0</span></div>
+      <div>Now: <span id="now">—</span></div>
+      <div>ΔA: <span id="dA">0</span></div>
+      <div>ΔB: <span id="dB">0</span></div>
+      <div>pos: <span id="pos">0</span></div>
+      <div>mph: <span id="mph">—</span></div>
+
+      <div class="controls">
+        <label><input type="checkbox" id="pause"> Pause</label>
+        <label><input type="checkbox" id="showRaw"> Raw+EMA</label>
+        <label><input type="checkbox" id="absDelta" checked> |Δ|</label>
+        <label>Y:
+          <select id="yRange">
+            <option value="auto" selected>Auto</option>
+            <option value="20">±20</option>
+            <option value="40">±40</option>
+            <option value="80">±80</option>
+            <option value="160">±160</option>
+          </select>
+        </label>
+        <label>Window:
+          <select id="win">
+            <option value="100">5s</option>
+            <option value="300" selected>15s</option>
+            <option value="600">30s</option>
+            <option value="1200">60s</option>
+          </select>
+        </label>
+        <label>Height:
+          <select id="heightSel">
+            <option value="140">140px</option>
+            <option value="160">160px</option>
+            <option value="180">180px</option>
+            <option value="200">200px</option>
+            <option value="240">240px</option>
+            <option value="300" selected>300px</option>
+          </select>
+        </label>
+        <button id="clear">Clear</button>
+      </div>
+    </div>
+
+    <!-- Tuning Panel -->
+    <div class="card" id="tuneCard" style="margin:10px 0;">
+      <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
+        <div><label>EMA<br><input type="range" id="ema" min="0.01" max="0.30" step="0.01"><br><small id="ema_v"></small></label></div>
+        <div><label>trigA<br><input type="range" id="trigA" min="4" max="60" step="1"><br><small id="trigA_v"></small></label></div>
+        <div><label>trigB<br><input type="range" id="trigB" min="4" max="60" step="1"><br><small id="trigB_v"></small></label></div>
+        <div><label>hys<br><input type="range" id="hys" min="0.55" max="0.90" step="0.01"><br><small id="hys_v"></small></label></div>
+        <div><label>minsep (s)<br><input type="range" id="minsep" min="0.20" max="0.80" step="0.01"><br><small id="minsep_v"></small></label></div>
+        <div><label>pair (s)<br><input type="range" id="pair" min="0.10" max="1.50" step="0.01"><br><small id="pair_v"></small></label></div>
+        <div><label>min_dt (s)<br><input type="range" id="min_dt" min="0.02" max="0.40" step="0.01"><br><small id="min_dt_v"></small></label></div>
+        <div><label>refract (s)<br><input type="range" id="refract" min="0.40" max="2.00" step="0.05"><br><small id="refract_v"></small></label></div>
+        <div style="margin-left:auto; display:flex; gap:8px;">
+          <button id="preset_bench">Bench</button>
+          <button id="preset_cars">Cars</button>
+          <button id="reset_view">Reset view</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tabbtn" id="btn-signals" onclick="activateTab('signals')">Signals</button>
+      <button class="tabbtn" id="btn-position" onclick="activateTab('position')">Position</button>
+      <button class="tabbtn" id="btn-energy"   onclick="activateTab('energy')">Energy</button>
+      <button class="tabbtn" id="btn-events"   onclick="activateTab('events')">Events</button>
+      <button class="tabbtn active" id="btn-coach" onclick="activateTab('coach')">Coach</button>
+    </div>
+
+    <!-- Panels -->
+    <div id="tab-signals" class="tab">
+      <div class="row cols-2">
+        <div class="card">
+          <div><b>Sensor A</b> <small>(Δ and thresholds)</small></div>
+          <div class="chartbox"><canvas id="chartA"></canvas></div>
+        </div>
+        <div class="card">
+          <div><b>Sensor B</b> <small>(Δ and thresholds)</small></div>
+          <div class="chartbox"><canvas id="chartB"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-position" class="tab">
+      <div class="row">
+        <div class="card">
+          <div><b>Position between A↔B</b> <small>(−1 = near A, +1 = near B)</small></div>
+          <div class="chartbox"><canvas id="posChart"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-energy" class="tab">
+      <div class="row">
+        <div class="card">
+          <div><b>Energy space</b> <small>(X = ΔA, Y = ΔB)</small></div>
+          <div class="chartbox"><canvas id="xyChart"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-events" class="tab">
+      <div class="row">
+        <div class="card">
+          <div><b>Event tape</b> <small>(newest first)</small></div>
+          <div id="tape" class="tape"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-coach" class="tab active">
+      <div class="row">
+        <div class="card">
+          <div class="coachGrid">
+            <div class="meters">
+              <div class="meter">
+                <h4>A (left)</h4>
+                <div class="barWrap">
+                  <div class="bar" id="barA"></div>
+                  <div class="thresh" id="thrOnA" title="trig_on"></div>
+                  <div class="thresh off" id="thrOffA" title="trig_off"></div>
+                  <div class="scale"><span>0</span><span>max</span></div>
+                </div>
+                <div class="legendRow"><span class="lg"></span> trig_on &nbsp; <span class="lg lg2"></span> trig_off</div>
+              </div>
+              <div class="meter">
+                <h4>B (right)</h4>
+                <div class="barWrap">
+                  <div class="bar" id="barB"></div>
+                  <div class="thresh" id="thrOnB" title="trig_on"></div>
+                  <div class="thresh off" id="thrOffB" title="trig_off"></div>
+                  <div class="scale"><span>0</span><span>max</span></div>
+                </div>
+                <div class="legendRow"><span class="lg"></span> trig_on &nbsp; <span class="lg lg2"></span> trig_off</div>
+              </div>
+            </div>
+            <div class="bigArrow" id="bigArrow">
+              <div class="dir dirA">⬅</div>
+              <div style="width:24px"></div>
+              <div class="dir dirB">➡</div>
+            </div>
+          </div>
+        </div>
+        <div class="card coachTips">
+          <b>How to read:</b>
+          <ul>
+            <li>Bars show |ΔA| and |ΔB| (instant motion strength per sensor).</li>
+            <li>Green line = trigger; blue = release (hysteresis).</li>
+            <li>Clean A→B: A bar rises first, then B; arrow lights ➡. Opposite for B→A.</li>
+            <li>If both bars stay high while you’re still, angle sensors outward or step back.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script>
+(function(){
+  // global tab helper
+  window.activateTab = function(name){
+    const ids = ['signals','position','energy','events','coach'];
+    ids.forEach(id=>{
+      const btn = document.getElementById('btn-'+id);
+      const tab = document.getElementById('tab-'+id);
+      if (btn) btn.classList.toggle('active', id===name);
+      if (tab) tab.classList.toggle('active', id===name);
+    });
+    if (name==='signals'){ if(chartA) chartA.resize(); if(chartB) chartB.resize(); }
+    if (name==='position'){ if(posChart) posChart.resize(); }
+    if (name==='energy'){ if(xyChart) xyChart.resize(); }
+  };
+
+  // Status refs
+  const dot=document.getElementById('dot'), liveText=document.getElementById('liveText');
+  const dNow=document.getElementById('now'), dDir=document.getElementById('dir'), dDt=document.getElementById('dt');
+  const dIn=document.getElementById('in'), dOut=document.getElementById('out'), dDA=document.getElementById('dA'), dDB=document.getElementById('dB');
+  const dPos=document.getElementById('pos'), dMPH=document.getElementById('mph');
+
+  // Controls
+  let paused=false, N=300, showRaw=false, yFixed=40, autoY=true;
+  document.getElementById('pause').addEventListener('change',e=>{paused=e.target.checked;});
+  document.getElementById('showRaw').addEventListener('change',e=>{showRaw=e.target.checked; [chartA,chartB].forEach(ch=>{ if(!ch) return; ch.data.datasets[0].hidden=!showRaw; ch.data.datasets[1].hidden=!showRaw; ch.update(); });});
+  document.getElementById('yRange').addEventListener('change',e=>{if(e.target.value==='auto') autoY=true; else {autoY=false; yFixed=parseInt(e.target.value,10);} [chartA,chartB].forEach(applyY); applyXYRange(); if(xyChart) xyChart.resize();});
+  document.getElementById('win').addEventListener('change',e=>{N=parseInt(e.target.value,10); [chartA,chartB].forEach(resizeDatasets); resizePos(); if(xyChart){ xyChart.data.datasets[0].data=[]; xyChart.update(); }});
+  document.getElementById('heightSel').addEventListener('change',e=>{const h=e.target.value; document.documentElement.style.setProperty('--canvasH', h+'px'); if(chartA) chartA.resize(); if(chartB) chartB.resize(); if(posChart) posChart.resize(); if(xyChart) xyChart.resize();});
+  document.addEventListener('DOMContentLoaded',()=>{const h=document.getElementById('heightSel').value; document.documentElement.style.setProperty('--canvasH', h+'px');});
+  document.getElementById('clear').addEventListener('click',()=>{[chartA,chartB].forEach(resizeDatasets); resizePos(); if(xyChart){ xyChart.data.datasets[0].data=[]; xyChart.update(); } dDir.textContent='—'; dDt.textContent='—'; document.getElementById('tape').innerHTML='';});
+
+  // Charts
+  const DPR=1;
+  function mkCfg(label){return{type:'line',data:{labels:Array(N).fill(''),datasets:[
+    {label:label+' raw',data:Array(N).fill(null),pointRadius:0,borderWidth:1,hidden:!showRaw},
+    {label:label+' EMA',data:Array(N).fill(null),pointRadius:0,borderWidth:1,hidden:!showRaw},
+    {label:label+' Δ',data:Array(N).fill(null),pointRadius:0,borderWidth:1},
+    {label:label+' trig_on',data:Array(N).fill(null),pointRadius:0,borderWidth:1},
+    {label:label+' trig_off',data:Array(N).fill(null),pointRadius:0,borderWidth:1}
+  ]},
+  options:{responsive:true,maintainAspectRatio:false,resizeDelay:120,devicePixelRatio:DPR,animation:false,
+  interaction:{mode:'nearest',intersect:false},
+  scales:{x:{display:true,ticks:{color:'#9fb3c8'},grid:{color:'#1e2732'}},
+          y:{ticks:{color:'#9fb3c8'},grid:{color:'#1e2732'},
+             min:autoY?undefined:-yFixed,max:autoY?undefined:yFixed,
+             suggestedMin:autoY?-40:undefined,suggestedMax:autoY?40:undefined}},
+  plugins:{legend:{display:false},decimation:{enabled:true,algorithm:'lttb',samples:200}}};}
+  function mkPosCfg(){return{type:'line',data:{labels:Array(N).fill(''),datasets:[{label:'pos (−1..+1)',data:Array(N).fill(null),pointRadius:0,borderWidth:1}]},
+    options:{responsive:true,maintainAspectRatio:false,resizeDelay:120,devicePixelRatio:DPR,animation:false,
+      scales:{x:{display:true,ticks:{color:'#9fb3c8'},grid:{color:'#1e2732'}},y:{min:-1,max:1,ticks:{color:'#9fb3c8'},grid:{color:'#1e2732'}}},
+      plugins:{legend:{display:false}}};}
+  function mkXyCfg(){return{type:'scatter',data:{datasets:[{label:'ΔB vs ΔA',data:[],pointRadius:2,showLine:false,borderWidth:0}]},
+    options:{responsive:true,maintainAspectRatio:false,resizeDelay:120,devicePixelRatio:DPR,animation:false,
+    scales:{x:{title:{display:true,text:'ΔA'},ticks:{color:'#9fb3c8'},grid:{color:'#1e2732'},min:-yFixed,max:yFixed},
+            y:{title:{display:true,text:'ΔB'},ticks:{color:'#9fb3c8'},grid:{color:'#1e2732'},min:-yFixed,max:yFixed}},
+    plugins:{legend:{display:false}}};}
+
+  const cA=document.getElementById('chartA'), cB=document.getElementById('chartB'),
+        cP=document.getElementById('posChart'), cX=document.getElementById('xyChart');
+  let chartA=null, chartB=null, posChart=null, xyChart=null;
+  if (window.Chart){
+    if (cA) chartA=new Chart(cA, mkCfg('A'));
+    if (cB) chartB=new Chart(cB, mkCfg('B'));
+    if (cP) posChart=new Chart(cP, mkPosCfg());
+    if (cX) xyChart =new Chart(cX, mkXyCfg());
+    [chartA,chartB,posChart,xyChart].forEach(ch=>{ if(ch){ ch.canvas.style.height='100%'; ch.canvas.style.width='100%'; }});
+  }
+  function resizeDatasets(ch){ if(!ch) return; ch.data.labels=Array(N).fill(''); ch.data.datasets.forEach(ds=>ds.data=Array(N).fill(null)); ch.update(); }
+  function applyY(ch){ if(!ch) return; ch.options.scales.y.min=autoY?undefined:-yFixed; ch.options.scales.y.max=autoY?undefined:yFixed; ch.options.scales.y.suggestedMin=autoY?-40:undefined; ch.options.scales.y.suggestedMax=autoY?40:undefined; ch.update(); }
+  function resizePos(){ if(!posChart) return; posChart.data.labels=Array(N).fill(''); posChart.data.datasets[0].data=Array(N).fill(null); posChart.update(); }
+  function applyXYRange(){ if(!xyChart) return; xyChart.options.scales.x.min=autoY?undefined:-yFixed; xyChart.options.scales.x.max=autoY?undefined:yFixed; xyChart.options.scales.y.min=autoY?undefined:-yFixed; xyChart.options.scales.y.max=autoY?undefined:yFixed; xyChart.update(); }
+  function pushArr(a,v){ a.push(v); if(a.length>N) a.shift(); }
+  function updateChart(ch,s,useAbs){
+    if (!ch) return;
+    const d=(useAbs?Math.abs(s.delta):s.delta);
+    pushArr(ch.data.datasets[0].data,s.val);
+    pushArr(ch.data.datasets[1].data,s.mu);
+    pushArr(ch.data.datasets[2].data,d);
+    pushArr(ch.data.datasets[3].data,s.trig_on);
+    pushArr(ch.data.datasets[4].data,s.trig_off);
+    pushArr(ch.data.labels,''); if(ch.data.labels.length>N) ch.data.labels.shift();
+    ch.update('none');
+  }
+
+  // Tuning panel helpers
+  const $ = id => document.getElementById(id);
+  const fields = ["ema","trigA","trigB","hys","minsep","pair","min_dt","refract"];
+  function showVals(cfg){
+    fields.forEach(k=>{
+      const el=$(k), lab=$(k+"_v");
+      if (el && cfg[k] !== undefined){ el.value = cfg[k]; if(lab) lab.textContent = String(cfg[k]); }
+    });
+  }
+  async function loadCfg(){ const r=await fetch("/cfg"); const cfg=await r.json(); showVals(cfg); }
+  async function pushCfg(partial){
+    try{
+      const r=await fetch("/cfg",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(partial)});
+      const cfg=await r.json(); showVals(cfg);
+    }catch(e){}
+  }
+  fields.forEach(k=>{
+    const el=$(k), lab=$(k+"_v");
+    if (!el) return;
+    el.addEventListener("input", ()=>{
+      if (lab) lab.textContent = el.value;
+      const v=parseFloat(el.value); if(!Number.isFinite(v)) return;
+      clearTimeout(el._t); el._t = setTimeout(()=>pushCfg({[k]: v}), 120);
+    });
+  });
+  $("preset_bench").addEventListener("click", ()=>{ pushCfg({ ema:0.07,trigA:18,trigB:24,hys:0.72,minsep:0.45,pair:0.60,min_dt:0.12,refract:1.20 }); });
+  $("preset_cars").addEventListener("click", ()=>{ pushCfg({ ema:0.05,trigA:20,trigB:24,hys:0.65,minsep:0.35,pair:0.20,min_dt:0.03,refract:0.60 }); });
+  $("reset_view").addEventListener("click", ()=>{ location.reload(); });
+  loadCfg();
+
+  // Coach bits
+  const barA=document.getElementById('barA'), barB=document.getElementById('barB');
+  const thrOnA=document.getElementById('thrOnA'), thrOffA=document.getElementById('thrOffA');
+  const thrOnB=document.getElementById('thrOnB'), thrOffB=document.getElementById('thrOffB');
+  const bigArrow=document.getElementById('bigArrow');
+  function setBar(el, frac){ if(!el) return; el.style.height=Math.max(0, Math.min(1, frac))*100 + '%'; }
+  function setThresh(el, trig, maxRef){ if(!el) return; const frac = Math.max(0, Math.min(1, trig / (maxRef||1))); el.style.bottom = (frac*100) + '%'; }
+  let maxSeen=40;
+
+  // SSE stream
+  const es = new EventSource('/stream');
+  let lastBeat=0;
+  function beat(){ dot.classList.add('ok'); lastBeat=Date.now(); }
+  setInterval(()=>{ if(Date.now()-lastBeat>1500){ dot.classList.remove('ok'); }}, 500);
+  es.onopen = ()=>{ liveText.textContent='Live'; beat(); };
+  es.onerror = ()=>{ liveText.textContent='Reconnecting…'; };
+  es.onmessage = (e)=>{
+    beat();
+    if (paused) return;
+    const m = JSON.parse(e.data);
+    if (m.cfg) showVals(m.cfg);
+
+    dNow.textContent = m.ts_iso || '';
+    dDir.textContent = m.cross.last_dir || '—';
+    dDt.textContent  = m.cross.last_dt ? m.cross.last_dt.toFixed(3)+' s' : '—';
+    dMPH.textContent = (m.cross.last_speed_mph && m.cross.last_speed_mph>0) ? m.cross.last_speed_mph.toFixed(1) : '—';
+
+    const a = Math.abs(m.A.delta), b = Math.abs(m.B.delta);
+    dDA.textContent = a.toFixed(1); dDB.textContent = b.toFixed(1);
+    const pos = (b - a) / (a + b + 1e-6); dPos.textContent = pos.toFixed(2);
+
+    // charts
+    updateChart(chartA, m.A, document.getElementById('absDelta').checked);
+    updateChart(chartB, m.B, document.getElementById('absDelta').checked);
+    if (posChart){ pushArr(posChart.data.datasets[0].data, pos); pushArr(posChart.data.labels, ''); if (posChart.data.labels.length>N) posChart.data.labels.shift(); posChart.update('none'); }
+    if (xyChart){ const tail=xyChart.data.datasets[0].data; tail.push({x:a,y:b}); while(tail.length>Math.min(N,200)) tail.shift(); xyChart.update('none'); }
+
+    // tape + arrow
+    if (m.events && m.events.length){
+      const tEl=document.getElementById('tape');
+      m.events.forEach(ev=>{
+        const div=document.createElement('div');
+        if (ev.kind==='burst'){
+          div.textContent = "["+ev.ts+"] Burst "+ev.sensor+" peak="+ev.peak_amp.toFixed(1)+" sign="+(ev.sign>0?"+":"-");
+        } else if (ev.kind==='cross'){
+          const mph = (typeof ev.mph==='number') ? (" mph≈"+ev.mph.toFixed(1)) : "";
+          div.textContent = "["+ev.ts+"] CROSS "+ev.direction+"  dt="+ev.dt.toFixed(3)+"s"+mph+"  in="+ev.inbound+" out="+ev.outbound;
+          if (bigArrow){
+            bigArrow.classList.remove('inbound','outbound');
+            if (ev.direction.startsWith('A')) bigArrow.classList.add('inbound'); else bigArrow.classList.add('outbound');
+          }
+        }
+        tEl.prepend(div); while(tEl.childElementCount>60) tEl.removeChild(tEl.lastChild);
+      });
+    }
+    dIn.textContent = m.cross.inbound; dOut.textContent = m.cross.outbound;
+
+    // coach bars scale
+    const peak = Math.max(a,b,m.A.trig_on,m.B.trig_on,10);
+    maxSeen = Math.max(10, 0.98*maxSeen + 0.02*peak);
+    setBar(barA, a/(maxSeen||1)); setBar(barB, b/(maxSeen||1));
+    setThresh(thrOnA, m.A.trig_on, maxSeen); setThresh(thrOffA, m.A.trig_off, maxSeen);
+    setThresh(thrOnB, m.B.trig_on, maxSeen); setThresh(thrOffB, m.B.trig_off, maxSeen);
+  };
+})();
+</script>
+</body>
+</html>

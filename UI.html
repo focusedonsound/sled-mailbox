@@ -1,0 +1,635 @@
+# =========================
+# ======= UI (HTML) =======
+# =========================
+INDEX_HTML = r"""<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>RD-03E Radar Scope</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  body{ background:#121417;color:#d8dee9;font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:0; }
+  header{ display:flex;gap:12px;align-items:center;flex-wrap:wrap; padding:10px 14px;background:#1b1f24;position:sticky;top:0; }
+  .pill{background:#2a2f37;border-radius:20px;padding:6px 10px}
+  .btn{background:#2f6fed;border:none;color:#fff;padding:6px 10px;border-radius:8px;cursor:pointer}
+
+  .grid{
+    display:grid;
+    grid-template-columns: minmax(320px,1fr) minmax(320px,1fr) minmax(320px,1fr);
+    gap:16px; padding:12px; align-items:start;
+  }
+  .card{ position:relative; overflow:hidden; background:#1b1f24; border:1px solid #2a2f37; border-radius:10px; padding:12px; z-index:0; }
+  .left{ grid-column:1; } .mid{ grid-column:2; } .right{ grid-column:3; }
+
+  @media (max-width:1400px){
+    .grid{ grid-template-columns: 1fr; }
+    .left{ order:1 } .mid{ order:2 } .right{ order:3 }
+  }
+
+  .bar{ height:220px; background:linear-gradient(180deg,#233,#111); position:relative; overflow:hidden }
+  .bar .fill{position:absolute;bottom:0;left:0;right:0;background:#4cd964;transition:height .1s}
+  .fill.active{box-shadow:0 0 16px 2px rgba(80,255,120,.6)}
+  .row-center{display:flex;flex-wrap:wrap;gap:14px;align-items:center;padding:8px 12px;justify-content:center}
+  label{opacity:.95;display:flex;align-items:center;gap:6px}
+  input[type="range"]{width:160px}
+  .val{font-feature-settings:"tnum" 1;font-variant-numeric:tabular-nums;min-width:52px;text-align:right;opacity:.9}
+  .rng{opacity:.6;font-size:12px;min-width:60px}
+  .info{cursor:help;opacity:.65}
+  .line{position:absolute;left:0;right:0;height:0;border-top:2px solid #ff5555;opacity:.9}
+  .line.rel{border-top:2px dashed #ffaa55;opacity:.8}
+  .dim{opacity:.75}
+  .vehrow{display:flex; align-items:center; justify-content:center; gap:32px; margin:6px 0 10px;}
+  @media (max-width:700px){ .vehrow{ flex-direction:column; gap:12px; }}
+  .vehcol{display:flex;flex-direction:column;align-items:center;gap:6px;margin:8px 18px}
+  .vehIcon{ font-size:58px; }
+  .vehSVG{ width:86px; height:46px; }
+  .vehIcon, .vehSVG{ opacity:.28; transition: opacity .08s, transform .08s; --flipx: 1; transform: scaleX(var(--flipx));}
+  .flash{ opacity:1 !important; transform: scaleX(var(--flipx)) translateY(-2px) scale(1.06) !important;}
+  .flip{ --flipx: -1; }
+  .arr{opacity:.65}
+  .inout{font-size:12px;opacity:.8;margin-top:2px}
+
+  .log{font-size:12px;max-height:140px;overflow:auto;margin-top:8px;opacity:.9;flex-basis:100%;width:100%}
+  .tuners{display:grid;grid-template-columns:repeat(2, 1fr);gap:10px;margin-top:10px}
+  .trow{display:flex;align-items:center;gap:6px}
+  .smallbtn{background:#3a404a;border:none;color:#fff;padding:4px 8px;border-radius:8px;cursor:pointer;font-size:12px}
+
+  .speedwrap{display:flex;flex-direction:column;align-items:center;gap:8px; width:100%;}
+  .speedrow{display:flex;flex-wrap:wrap;justify-content:center;gap:16px; width:100%;}
+
+  /* NEW: UART & RAW panes */
+  .panes{ display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:12px;}
+  @media (max-width:900px){ .panes{ grid-template-columns:1fr; } }
+  textarea, input[type="text"], input[type="number"], select {
+    background:#2a2f37;color:#d8dee9;border:1px solid #3a404a;border-radius:8px;padding:6px 8px
+  }
+  textarea { width:100%; min-height:120px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; }
+  .monolist{ font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; background:#14181e; border:1px solid #2a2f37; padding:8px; border-radius:8px; max-height:260px; overflow:auto; }
+  .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; }
+</style>
+</head>
+<body>
+<header>
+  <div class="pill">Live</div>
+  <label title="Pause detection logic"><input id="pause" type="checkbox"> Pause</label>
+  <button class="btn" onclick="bench()">Bench</button>
+  <button class="btn" onclick="cars()">Cars</button>
+  <button class="btn" onclick="resetView()">Reset view</button>
+  <button class="btn" onclick="saveCfg()">Save</button>
+  <button class="btn" onclick="loadCfg()">Load</button>
+  <button class="btn" onclick="resetCfg()">Reset</button>
+  <div id="cfgstat" class="pill">Config: —</div>
+  <div id="last" class="pill">Last: —</div>
+</header>
+
+<!-- Global timing and extras -->
+<div class="row-center">
+  <label title="Debounce between rising triggers on the same sensor">minsep <span class="info">ⓘ</span><span id="rng_minsep" class="rng"></span><input id="minsep" type="range" min="0.05" max="1.50" step="0.01" value="0.35"><span id="minsep_val" class="val">0.35</span></label>
+  <label title="A→B minimum time">min_dtAB <span class="info">ⓘ</span><span id="rng_min_dtAB" class="rng"></span><input id="min_dtAB" type="range" min="0.02" max="0.80" step="0.01" value="0.12"><span id="min_dtAB_val" class="val">0.12</span></label>
+  <label title="A→B maximum pair window">pairAB <span class="info">ⓘ</span><span id="rng_pairAB" class="rng"></span><input id="pairAB" type="range" min="0.15" max="2.50" step="0.01" value="0.55"><span id="pairAB_val" class="val">0.55</span></label>
+  <label title="B→A minimum time">min_dtBA <span class="info">ⓘ</span><span id="rng_min_dtBA" class="rng"></span><input id="min_dtBA" type="range" min="0.02" max="0.80" step="0.01" value="0.12"><span id="min_dtBA_val" class="val">0.12</span></label>
+  <label title="B→A maximum pair window">pairBA <span class="info">ⓘ</span><span id="rng_pairBA" class="rng"></span><input id="pairBA" type="range" min="0.15" max="2.50" step="0.01" value="0.55"><span id="pairBA_val" class="val">0.55</span></label>
+  <label title="Reject near-simultaneous sensors">simul_cutoff <span class="info">ⓘ</span><span id="rng_simul_cutoff" class="rng"></span><input id="simul_cutoff" type="range" min="0.00" max="0.12" step="0.01" value="0.04"><span id="simul_cutoff_val" class="val">0.04</span></label>
+  <label title="Refractory period after decision">refract <span class="info">ⓘ</span><span id="rng_refract" class="rng"></span><input id="refract" type="range" min="0.20" max="3.00" step="0.01" value="1.00"><span id="refract_val" class="val">1.00</span></label>
+  <label title="Throttle decisions beyond this events/sec">rate_max_eps <span class="info">ⓘ</span><span id="rng_rate_max_eps" class="rng"></span><input id="rate_max_eps" type="range" min="0.0" max="20.0" step="0.5" value="8.0"><span id="rate_max_eps_val" class="val">8.0</span></label>
+  <label class="mono" title="Which side is incoming for your install"><input id="incomingRight" type="checkbox" checked> Incoming is →</label>
+</div>
+
+<div class="grid">
+  <!-- Sensor A -->
+  <div class="card left">
+    <h3>A (left)</h3>
+    <div class="bar">
+      <div id="barA" class="fill" style="height:0%"></div>
+      <div id="thrA" class="line" style="bottom:0%"></div>
+      <div id="relA" class="line rel" style="bottom:0%"></div>
+    </div>
+    <div class="dim" style="margin-top:6px">trigger: <span id="sta">off</span> · offline: <span id="offA">no</span></div>
+
+    <div class="tuners">
+      <div class="trow">
+        <label title="EMA alpha for magnitude smoothing (higher = snappier)">emaA <span class="info">ⓘ</span><span id="rng_emaA" class="rng"></span><input id="emaA" type="range" min="0.01" max="0.60" step="0.01" value="0.07"><span id="emaA_val" class="val">0.07</span></label>
+        <label title="EMA alpha for delta smoothing">emaDA <span class="info">ⓘ</span><span id="rng_emaDA" class="rng"></span><input id="emaDA" type="range" min="0.02" max="0.60" step="0.01" value="0.18"><span id="emaDA_val" class="val">0.18</span></label>
+      </div>
+      <div class="trow">
+        <label title="Noise floor (deadband) for A delta">deadA <span class="info">ⓘ</span><span id="rng_deadA" class="rng"></span><input id="deadA" type="range" min="0" max="8" step="0.1" value="0.8"><span id="deadA_val" class="val">0.8</span></label>
+        <label title="Spike guard clamp (μ+kσ). 0 disables (global)">spike_factor_A <span class="info">ⓘ</span><span id="rng_spike_factor_A" class="rng"></span><input id="spike_factor_A" type="range" min="0.0" max="8.0" step="0.5" value="0.0"><span id="spike_factor_A_val" class="val">0.0</span></label>
+      </div>
+      <div class="trow">
+        <label title="ON threshold for A delta">trigA <span class="info">ⓘ</span><span id="rng_trigA" class="rng"></span><input id="trigA" type="range" min="0" max="60" step="1" value="14"><span id="trigA_val" class="val">14</span></label>
+        <label title="Hysteresis factor (OFF at trigA × hysA)">hysA <span class="info">ⓘ</span><span id="rng_hysA" class="rng"></span><input id="hysA" type="range" min="0.35" max="0.95" step="0.01" value="0.65"><span id="hysA_val" class="val">0.65</span></label>
+      </div>
+      <div class="trow">
+        <label title="Minimum ON time once A triggers">holdA <span class="info">ⓘ</span><span id="rng_holdA" class="rng"></span><input id="holdA" type="range" min="0.00" max="1.00" step="0.01" value="0.10"><span id="holdA_val" class="val">0.10</span></label>
+        <label title="Visual multiplier (display only)">gainA <span class="info">ⓘ</span><span id="rng_gainA" class="rng"></span><input id="gainA" type="range" min="1" max="8" step="0.1" value="4.5"><span id="gainA_val" class="val">4.5</span></label>
+      </div>
+      <div class="trow">
+        <label title="Mark A offline if no data for N ms">sensor_timeoutA <span class="info">ⓘ</span><span id="rng_sensor_timeoutA" class="rng"></span><input id="sensor_timeoutA" type="range" min="0" max="5000" step="50" value="0"><span id="sensor_timeoutA_val" class="val">0</span></label>
+        <button class="smallbtn" onclick="calib('A')" title="Sample idle for 12s and set deadA">Calibrate A</button>
+      </div>
+    </div>
+  </div>
+  <!-- Direction / Speed mid panel -->
+<div class="card mid">
+  <h3>Direction / Speed</h3>
+
+  <!-- Vehicle icons & direction labels -->
+<div class="vehrow">
+  <div class="vehcol">
+    <span id="vehL"></span>
+    <div class="arr">⬅</div>
+    <div id="labelL" class="inout">Outgoing</div>
+  </div>
+  <div class="vehcol">
+    <span id="vehR"></span>
+    <div class="arr">➡</div>
+    <div id="labelR" class="inout">Incoming</div>
+  </div>
+</div>
+
+  <!-- (optional) vehicle selector; keep if you want to switch icon sets in UI -->
+  <div class="row-center" style="margin-top:4px">
+    <label class="mono" title="Pick vehicle icon">
+      Vehicle:
+      <select id="vehSelect">
+        <option value="car-side">car-side</option>
+        <option value="truck-monster">truck-monster</option>
+      </select>
+    </label>
+    <label class="mono" title="Choose which direction is Incoming for your install">
+      <input id="incomingRight" type="checkbox" checked> Incoming is →
+    </label>
+  </div>
+
+  <!-- Speed controls (centered) -->
+  <div class="speedwrap">
+    <div class="speedrow">
+      <label title="Enable mph estimate using sensor spacing and time between A/B">
+        speed_enable <span class="info">ⓘ</span>
+        <input id="speed_enable" type="checkbox">
+      </label>
+    </div>
+    <div class="speedrow">
+      <label title="Distance between sensor centers (feet)">
+        sensor_spacing_ft <span class="info">ⓘ</span><span id="rng_sensor_spacing_ft" class="rng"></span>
+        <input id="sensor_spacing_ft" type="range" min="0" max="30" step="0.5" value="0">
+        <span id="sensor_spacing_ft_val" class="val">0</span>
+      </label>
+      <label title="EMA alpha for mph smoothing">
+        speed_filter_alpha <span class="info">ⓘ</span><span id="rng_speed_filter_alpha" class="rng"></span>
+        <input id="speed_filter_alpha" type="range" min="0.05" max="0.80" step="0.01" value="0.25">
+        <span id="speed_filter_alpha_val" class="val">0.25</span>
+      </label>
+      <label title="Accept mph in this range">
+        mph_min..max <span class="info">ⓘ</span>
+        <input id="mph_min" type="number" step="0.1" value="0.0" style="width:72px">
+        <input id="mph_max" type="number" step="0.1" value="80.0" style="width:72px">
+      </label>
+      <div class="pill" id="mphpill">mph: —</div>
+    </div>
+  </div>
+
+  <!-- UART config + console and Raw Inspector panes -->
+  <div class="panes">
+    <!-- UART Config + Console -->
+    <div class="card" style="padding:10px">
+      <h4>UART Config + Console</h4>
+      <div class="trow" style="margin-bottom:8px">
+        <label>Target
+          <select id="uart_side">
+            <option value="A">A (/dev/serial0)</option>
+            <option value="B">B (/dev/ttyUSB0)</option>
+          </select>
+        </label>
+        <label>Read wait (ms)
+          <input id="uart_read_wait_ms" type="number" step="10" value="50" style="width:80px">
+        </label>
+        <label>Total timeout (ms)
+          <input id="uart_total_timeout_ms" type="number" step="10" value="500" style="width:90px">
+        </label>
+      </div>
+      <div class="trow" style="gap:12px;flex-wrap:wrap">
+        <label>min_gate <input id="p_min_gate" type="number" step="1" value="0" style="width:70px"></label>
+        <label>max_gate <input id="p_max_gate" type="number" step="1" value="5" style="width:70px"></label>
+        <label>min_frames <input id="p_min_frames" type="number" step="1" value="2" style="width:90px"></label>
+        <label>disappear_frames <input id="p_disappear_frames" type="number" step="1" value="10" style="width:130px"></label>
+        <label>delay_ms <input id="p_delay_ms" type="number" step="10" value="300" style="width:90px"></label>
+        <label>sensitivity <input id="p_sensitivity" type="number" step="1" value="3" style="width:90px"></label>
+      </div>
+      <div style="margin:8px 0">
+        <div class="mono" style="opacity:.8;margin-bottom:4px">Hex template (placeholders allowed, e.g. <code>{min_gate:02X}</code>)</div>
+        <textarea id="uart_template" placeholder="Example: AA 55 07 00 {min_gate:02X} {max_gate:02X} {min_frames:02X} {disappear_frames:02X} {delay_ms:04X} {sensitivity:02X}"></textarea>
+      </div>
+      <div class="trow" style="gap:8px;flex-wrap:wrap">
+        <button class="smallbtn" onclick="uartApply()">Apply (Render + Send)</button>
+        <button class="smallbtn" onclick="uartSend()">Send Raw Hex</button>
+        <input id="uart_raw_hex" type="text" placeholder="AA 55 ..." style="flex:1 1 320px">
+      </div>
+      <div class="monolist" id="uart_resp"></div>
+    </div>
+
+    <!-- Raw Frame Inspector -->
+    <div class="card" style="padding:10px">
+      <h4>Raw Frame Inspector</h4>
+      <div class="trow" style="gap:8px;flex-wrap:wrap">
+        <label>Show <input id="raw_buf_len" type="number" step="5" value="40" style="width:70px"></label>
+        <button class="smallbtn" onclick="refreshRaw('A')">Refresh A</button>
+        <button class="smallbtn" onclick="refreshRaw('B')">Refresh B</button>
+      </div>
+      <div class="mono" style="opacity:.75;margin:6px 0">Newest at top. Each line: [time] len bytes : HEX…</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div>
+          <div class="mono" style="opacity:.85">A</div>
+          <div id="rawA" class="monolist"></div>
+        </div>
+        <div>
+          <div class="mono" style="opacity:.85">B</div>
+          <div id="rawB" class="monolist"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Event log -->
+  <div class="log" id="elog"></div>
+</div>
+
+
+    <div class="panes">
+      <div class="card" style="padding:10px">
+        <h4>UART Config + Console</h4>
+        <div class="trow" style="margin-bottom:8px">
+          <label>Target
+            <select id="uart_side">
+              <option value="A">A (/dev/serial0)</option>
+              <option value="B">B (/dev/ttyUSB0)</option>
+            </select>
+          </label>
+          <label>Read wait (ms) <input id="uart_read_wait_ms" type="number" step="10" value="50" style="width:80px"></label>
+          <label>Total timeout (ms) <input id="uart_total_timeout_ms" type="number" step="10" value="500" style="width:90px"></label>
+        </div>
+        <div class="trow" style="gap:12px;flex-wrap:wrap">
+          <label>min_gate <input id="p_min_gate" type="number" step="1" value="0" style="width:70px"></label>
+          <label>max_gate <input id="p_max_gate" type="number" step="1" value="5" style="width:70px"></label>
+          <label>min_frames <input id="p_min_frames" type="number" step="1" value="2" style="width:90px"></label>
+          <label>disappear_frames <input id="p_disappear_frames" type="number" step="1" value="10" style="width:130px"></label>
+          <label>delay_ms <input id="p_delay_ms" type="number" step="10" value="300" style="width:90px"></label>
+          <label>sensitivity <input id="p_sensitivity" type="number" step="1" value="3" style="width:90px"></label>
+        </div>
+        <div style="margin:8px 0">
+          <div class="mono" style="opacity:.8;margin-bottom:4px">Hex template (placeholders allowed, e.g. <code>{min_gate:02X}</code>)</div>
+          <textarea id="uart_template" placeholder="Example: AA 55 07 00 {min_gate:02X} {max_gate:02X} {min_frames:02X} {disappear_frames:02X} {delay_ms:04X} {sensitivity:02X}"></textarea>
+        </div>
+        <div class="trow" style="gap:8px;flex-wrap:wrap">
+          <button class="smallbtn" onclick="uartApply()">Apply (Render + Send)</button>
+          <button class="smallbtn" onclick="uartSend()">Send Raw Hex</button>
+          <input id="uart_raw_hex" type="text" placeholder="AA 55 ..." style="flex:1 1 320px">
+        </div>
+        <div class="monolist" id="uart_resp"></div>
+      </div>
+
+      <div class="card" style="padding:10px">
+        <h4>Raw Frame Inspector</h4>
+        <div class="trow" style="gap:8px;flex-wrap:wrap">
+          <label>Show <input id="raw_buf_len" type="number" step="5" value="40" style="width:70px"></label>
+          <button class="smallbtn" onclick="refreshRaw('A')">Refresh A</button>
+          <button class="smallbtn" onclick="refreshRaw('B')">Refresh B</button>
+        </div>
+        <div class="mono" style="opacity:.75;margin:6px 0">Newest at top. Each line: [time] len bytes : HEX…</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div>
+            <div class="mono" style="opacity:.85">A</div>
+            <div id="rawA" class="monolist"></div>
+          </div>
+          <div>
+            <div class="mono" style="opacity:.85">B</div>
+            <div id="rawB" class="monolist"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="log" id="elog"></div>
+  </div>
+
+  <!-- Sensor B -->
+  <div class="card right">
+    <h3>B (right)</h3>
+    <div class="bar">
+      <div id="barB" class="fill" style="height:0%"></div>
+      <div id="thrB" class="line" style="bottom:0%"></div>
+      <div id="relB" class="line rel" style="bottom:0%"></div>
+    </div>
+    <div class="dim" style="margin-top:6px">trigger: <span id="stb">off</span> · offline: <span id="offB">no</span></div>
+
+    <div class="tuners">
+      <div class="trow">
+        <label title="EMA alpha for magnitude smoothing (higher = snappier)">emaB <span class="info">ⓘ</span><span id="rng_emaB" class="rng"></span><input id="emaB" type="range" min="0.01" max="0.60" step="0.01" value="0.07"><span id="emaB_val" class="val">0.07</span></label>
+        <label title="EMA alpha for delta smoothing">emaDB <span class="info">ⓘ</span><span id="rng_emaDB" class="rng"></span><input id="emaDB" type="range" min="0.02" max="0.60" step="0.01" value="0.28"><span id="emaDB_val" class="val">0.28</span></label>
+      </div>
+      <div class="trow">
+        <label title="Noise floor (deadband) for B delta">deadB <span class="info">ⓘ</span><span id="rng_deadB" class="rng"></span><input id="deadB" type="range" min="0" max="8" step="0.1" value="1.5"><span id="deadB_val" class="val">1.5</span></label>
+        <label title="Spike guard clamp (μ+kσ). 0 disables (global)">spike_factor_B <span class="info">ⓘ</span><span id="rng_spike_factor_B" class="rng"></span><input id="spike_factor_B" type="range" min="0.0" max="8.0" step="0.5" value="0.0"><span id="spike_factor_B_val" class="val">0.0</span></label>
+      </div>
+      <div class="trow">
+        <label title="ON threshold for B delta">trigB <span class="info">ⓘ</span><span id="rng_trigB" class="rng"></span><input id="trigB" type="range" min="0" max="60" step="1" value="14"><span id="trigB_val" class="val">14</span></label>
+        <label title="Hysteresis factor (OFF at trigB × hysB)">hysB <span class="info">ⓘ</span><span id="rng_hysB" class="rng"></span><input id="hysB" type="range" min="0.35" max="0.95" step="0.01" value="0.65"><span id="hysB_val" class="val">0.65</span></label>
+      </div>
+      <div class="trow">
+        <label title="Minimum ON time once B triggers">holdB <span class="info">ⓘ</span><span id="rng_holdB" class="rng"></span><input id="holdB" type="range" min="0.00" max="1.00" step="0.01" value="0.10"><span id="holdB_val" class="val">0.10</span></label>
+        <label title="Visual multiplier (display only)">gainB <span class="info">ⓘ</span><span id="rng_gainB" class="rng"></span><input id="gainB" type="range" min="1" max="8" step="0.1" value="4.5"><span id="gainB_val" class="val">4.5</span></label>
+      </div>
+      <div class="trow">
+        <label title="Mark B offline if no data for N ms">sensor_timeoutB <span class="info">ⓘ</span><span id="rng_sensor_timeoutB" class="rng"></span><input id="sensor_timeoutB" type="range" min="0" max="5000" step="50" value="0"><span id="sensor_timeoutB_val" class="val">0</span></label>
+        <button class="smallbtn" onclick="calib('B')" title="Sample idle for 12s and set deadB">Calibrate B</button>
+      </div>
+    </div>
+  </div>
+</div> <!-- end .grid -->
+
+<script>
+const keys = [
+  "paused",
+  "emaA","emaB","emaDA","emaDB","deadA","deadB",
+  "spike_factor",     // synced from A & B spike sliders
+  "trigA","trigB","hysA","hysB","holdA","holdB",
+  "minsep","min_dtAB","pairAB","min_dtBA","pairBA","simul_cutoff","refract",
+  "rate_max_eps",
+  "gainA","gainB",
+  "speed_enable","sensor_spacing_ft","speed_filter_alpha","mph_min","mph_max",
+  "sensor_timeoutA","sensor_timeoutB",
+  // UART persisted:
+  "uart_side","uart_read_wait_ms","uart_total_timeout_ms","raw_buf_len"
+];
+
+const el = id => document.getElementById(id);
+
+function setVal(id, v){
+  const n = (typeof v==="number") ? v : parseFloat(v);
+  const asFixed = (id.includes("ema")||id.includes("hys")||id.includes("refract")||id.includes("alpha"));
+  el(id).textContent = asFixed ? n.toFixed(2) : n;
+}
+function setRangeLabels(){
+  const rangeKeys = [...keys, "spike_factor_A","spike_factor_B"];
+  rangeKeys.forEach(k=>{
+    const inp = el(k), spot = el("rng_"+k);
+    if (inp && spot && "min" in inp) spot.textContent = inp.min + "–" + inp.max;
+  });
+}
+function syncSpikeDisplays(v){
+  if (el("spike_factor_A")) { el("spike_factor_A").value = v; setVal("spike_factor_A_val", v); }
+  if (el("spike_factor_B")) { el("spike_factor_B").value = v; setVal("spike_factor_B_val", v); }
+}
+
+function loadState(){
+  fetch("/state").then(r=>r.json()).then(s=>{
+    keys.forEach(k=>{
+      if (el(k)) {
+        if (el(k).type === "checkbox") el(k).checked = !!s[k];
+        else el(k).value = s[k];
+        const out = el(k+"_val"); if (out) setVal(k+"_val", s[k]);
+      }
+    });
+    // UART params blob
+    if (s.uart_params){
+      const p=s.uart_params;
+      ["min_gate","max_gate","min_frames","disappear_frames","delay_ms","sensitivity"].forEach(n=>{
+        if (el("p_"+n) && (n in p)) el("p_"+n).value = p[n];
+      });
+    }
+    if ("uart_template" in s) el("uart_template").value = s.uart_template || "";
+    // spike factor mirrored controls
+    const sf = s["spike_factor"] ?? 0; syncSpikeDisplays(sf);
+    setRangeLabels(); updateLines();
+  });
+}
+function postState(obj){
+  fetch("/state",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(obj)});
+  updateLines();
+}
+el("pause").addEventListener("change", e=>postState({paused:e.target.checked}));
+keys.forEach(k=>{
+  if (el(k)) {
+    el(k).addEventListener("input", e=>{
+      const ctrl = e.target;
+      const v = (ctrl.type === "checkbox") ? ctrl.checked : (ctrl.type==="number"? parseFloat(ctrl.value) : parseFloat(ctrl.value));
+      const out = el(k+"_val"); if (out) setVal(k+"_val", v);
+      postState({[k]: v});
+      if (k === "spike_factor") syncSpikeDisplays(v);
+    });
+  }
+});
+["spike_factor_A","spike_factor_B"].forEach(id=>{
+  if (el(id)) {
+    el(id).addEventListener("input", e=>{
+      const v = parseFloat(e.target.value);
+      setVal(id+"_val", v);
+      syncSpikeDisplays(v);
+      postState({spike_factor: v});
+    });
+  }
+});
+
+// UART helpers
+function getUartParams(){
+  return {
+    min_gate: parseInt(el("p_min_gate").value||"0"),
+    max_gate: parseInt(el("p_max_gate").value||"0"),
+    min_frames: parseInt(el("p_min_frames").value||"0"),
+    disappear_frames: parseInt(el("p_disappear_frames").value||"0"),
+    delay_ms: parseInt(el("p_delay_ms").value||"0"),
+    sensitivity: parseInt(el("p_sensitivity").value||"0"),
+  };
+}
+function uartApply(){
+  const body = {
+    side: el("uart_side").value || "A",
+    template: el("uart_template").value || "",
+    params: getUartParams(),
+  };
+  fetch("/uart/apply",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)})
+    .then(r=>r.json()).then(j=>{
+      const box = el("uart_resp");
+      if (j.ok){
+        box.innerHTML = `<div>TX (${j.tx_len}): <span class="mono">${j.tx_hex}</span></div>
+                         <div>RX (${j.rx_len}): <span class="mono">${j.rx_hex}</span></div>`;
+      }else{
+        box.innerHTML = `<div style="color:#f66">Error: ${j.error||"unknown"}</div>`;
+      }
+    });
+}
+function uartSend(){
+  const body = {
+    side: el("uart_side").value || "A",
+    hex: el("uart_raw_hex").value || ""
+  };
+  fetch("/uart/send",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)})
+    .then(r=>r.json()).then(j=>{
+      const box = el("uart_resp");
+      if (j.ok){
+        box.innerHTML = `<div>TX (${j.tx_len}): <span class="mono">${j.tx_hex}</span></div>
+                         <div>RX (${j.rx_len}): <span class="mono">${j.rx_hex}</span></div>`;
+      }else{
+        box.innerHTML = `<div style="color:#f66">Error: ${j.error||"unknown"}</div>`;
+      }
+    });
+}
+function refreshRaw(side){
+  // persist chosen buf len
+  const n = parseInt(el("raw_buf_len").value||"40");
+  postState({raw_buf_len: n});
+  fetch(`/uart/raw?side=${side}`).then(r=>r.json()).then(j=>{
+    const div = el(side==="A"?"rawA":"rawB"); div.innerHTML="";
+    if (j.ok && j.frames){
+      j.frames.forEach(f=>{
+        const row = document.createElement("div");
+        row.textContent = `[${f.t_local}] ${f.len} : ${f.hex}`;
+        div.appendChild(row);
+      });
+    }
+  });
+}
+
+// threshold lines use per-sensor hysteresis
+function thrPercent(v, gain){ return Math.max(0, Math.min(100, v * gain)); }
+function updateLines(){
+  const tA = parseFloat(el("trigA").value), tB = parseFloat(el("trigB").value);
+  const hA = parseFloat(el("hysA").value),  hB = parseFloat(el("hysB").value);
+  const gA = parseFloat(el("gainA").value), gB = parseFloat(el("gainB").value);
+  el("thrA").style.bottom = thrPercent(tA, gA).toFixed(0) + "%";
+  el("thrB").style.bottom = thrPercent(tB, gB).toFixed(0) + "%";
+  el("relA").style.bottom = thrPercent(tA*hA, gA).toFixed(0) + "%";
+  el("relB").style.bottom = thrPercent(tB*hB, gB).toFixed(0) + "%";
+}
+
+// ===== Vehicle icon helpers (place right after updateLines) =====
+let vehClass = "car-side";   // Font Awesome name (without "fa-")
+let useFA = false;
+let vehLeftEl=null, vehRightEl=null;
+
+function detectFA(){
+  const test = document.createElement("i");
+  test.className = "fa-solid fa-car-side";
+  test.style.position="absolute"; test.style.left="-9999px";
+  document.body.appendChild(test);
+  const fam = (getComputedStyle(test).fontFamily||"");
+  useFA = fam.toLowerCase().includes("font awesome");
+  document.body.removeChild(test);
+}
+
+function svgIcon(which){
+  if(which==="truck-monster"){
+    return '<svg class="vehSVG" viewBox="0 0 120 60" aria-hidden="true"><rect x="6" y="22" width="78" height="22" rx="4" fill="#3483fa"/><rect x="84" y="26" width="28" height="18" rx="3" fill="#6cb0ff"/><circle cx="28" cy="52" r="9" fill="#222"/><circle cx="28" cy="52" r="3.5" fill="#bbb"/><circle cx="80" cy="52" r="9" fill="#222"/><circle cx="80" cy="52" r="3.5" fill="#bbb"/></svg>';
+  }
+  // default car
+  return '<svg class="vehSVG" viewBox="0 0 120 60" aria-hidden="true"><rect x="16" y="28" width="74" height="14" rx="7" fill="#25c06d"/><rect x="38" y="22" width="32" height="10" rx="3" fill="#4fe495"/><circle cx="36" cy="46" r="7" fill="#222"/><circle cx="36" cy="46" r="3" fill="#bbb"/><circle cx="86" cy="46" r="7" fill="#222"/><circle cx="86" cy="46" r="3" fill="#bbb"/></svg>';
+}
+
+function applyVehIcons(){
+  const lBox = document.getElementById("vehL");
+  const rBox = document.getElementById("vehR");
+  if (!lBox || !rBox) return;
+  lBox.innerHTML = ""; rBox.innerHTML = "";
+  if (useFA) {
+    const l = document.createElement("i"); l.className = "fa-solid fa-"+vehClass+" vehIcon flip";
+    const r = document.createElement("i"); r.className = "fa-solid fa-"+vehClass+" vehIcon";
+    lBox.appendChild(l); rBox.appendChild(r); vehLeftEl=l; vehRightEl=r;
+  } else {
+    const lt = document.createElement("div"); lt.innerHTML = svgIcon(vehClass);
+    const rt = document.createElement("div"); rt.innerHTML = svgIcon(vehClass);
+    lt.firstChild.classList.add("flip");
+    lBox.appendChild(lt.firstChild); rBox.appendChild(rt.firstChild);
+    vehLeftEl = lBox.firstChild; vehRightEl = rBox.firstChild;
+  }
+}
+
+function updateIncomingLabels(){
+  const left = document.getElementById("labelL");
+  const right = document.getElementById("labelR");
+  if (!left || !right) return;
+  left.textContent = incomingRight ? "Outgoing" : "Incoming";
+  right.textContent = incomingRight ? "Incoming" : "Outgoing";
+}
+
+// Hook up controls (if present)
+const vehSel = document.getElementById("vehSelect");
+if (vehSel) {
+  vehSel.addEventListener("change", e => { vehClass = e.target.value; applyVehIcons(); });
+}
+const incomingToggle = document.getElementById("incomingRight");
+if (incomingToggle) {
+  incomingToggle.addEventListener("change", e => { incomingRight = !!e.target.checked; updateIncomingLabels(); });
+}
+
+// Initialize icons after DOM is ready
+detectFA(); applyVehIcons(); updateIncomingLabels();
+// ===== end vehicle helpers =====
+
+let incomingRight = true;
+el("incomingRight").addEventListener("change", e => { incomingRight = !!e.target.checked; });
+function bench(){ fetch("/bench",{method:"POST"}); }
+function cars(){ fetch("/cars",{method:"POST"}); }
+function resetView(){ loadState(); }
+
+// Persistence buttons
+function saveCfg(){ fetch("/save",{method:"POST"}).then(r=>r.json()).then(_=>{ el("cfgstat").textContent="Config: saved"; setTimeout(()=>el("cfgstat").textContent="Config: —",1500);});}
+function loadCfg(){ fetch("/load",{method:"POST"}).then(r=>r.json()).then(j=>{
+  const s=j.state||{}; Object.keys(s).forEach(k=>{ if(el(k)){ if(el(k).type==="checkbox") el(k).checked=!!s[k]; else el(k).value=s[k]; const out=el(k+"_val"); if(out) setVal(k+"_val", s[k]); }});
+  if (s.uart_params){ const p=s.uart_params; ["min_gate","max_gate","min_frames","disappear_frames","delay_ms","sensitivity"].forEach(n=>{ if(el("p_"+n) && (n in p)) el("p_"+n).value = p[n]; }); }
+  if ("uart_template" in s) el("uart_template").value = s.uart_template || "";
+  const sf=s["spike_factor"]??0; syncSpikeDisplays(sf); setRangeLabels(); updateLines(); el("cfgstat").textContent="Config: loaded"; setTimeout(()=>el("cfgstat").textContent="Config: —",1500);
+});}
+function resetCfg(){ fetch("/reset",{method:"POST"}).then(r=>r.json()).then(j=>{
+  const s=j.state||{}; Object.keys(s).forEach(k=>{ if(el(k)){ if(el(k).type==="checkbox") el(k).checked=!!s[k]; else el(k).value=s[k]; const out=el(k+"_val"); if(out) setVal(k+"_val", s[k]); }});
+  if (s.uart_params){ const p=s.uart_params; ["min_gate","max_gate","min_frames","disappear_frames","delay_ms","sensitivity"].forEach(n=>{ if(el("p_"+n) && (n in p)) el("p_"+n).value = p[n]; }); }
+  if ("uart_template" in s) el("uart_template").value = s.uart_template || "";
+  const sf=s["spike_factor"]??0; syncSpikeDisplays(sf); setRangeLabels(); updateLines(); el("cfgstat").textContent="Config: reset"; setTimeout(()=>el("cfgstat").textContent="Config: —",1500);
+});}
+
+// Per-sensor calibrate (idle learn)
+function calib(side){
+  fetch("/calibrate/"+side,{method:"POST"})
+    .then(r=>r.json()).then(j=>{
+      if(j && j[side]) {
+        const k = "dead"+side;
+        if (el(k)) { el(k).value = j[side].dead; const out=el(k+"_val"); if(out) setVal(k+"_val", j[side].dead); postState({[k]: j[side].dead}); }
+        el("cfgstat").textContent = "Calibrated "+side+" (dead="+j[side].dead+")";
+        setTimeout(()=>el("cfgstat").textContent="Config: —", 2000);
+      }
+    });
+}
+
+loadState();
+
+// Stream handling
+function drawTick(d){
+  const gA=parseFloat(el("gainA").value), gB=parseFloat(el("gainB").value);
+  const a=Math.max(0,Math.min(100,(d.da||0)*gA)); const b=Math.max(0,Math.min(100,(d.db||0)*gB));
+  const fa=el("barA"), fb=el("barB"); fa.style.height=a.toFixed(0)+"%"; fb.style.height=b.toFixed(0)+"%";
+  if(d.ta){ fa.classList.add("active"); el("sta").textContent="ON"; } else { fa.classList.remove("active"); el("sta").textContent="off"; }
+  if(d.tb){ fb.classList.add("active"); el("stb").textContent="ON"; } else { fb.classList.remove("active"); el("stb").textContent="off"; }
+  el("offA").textContent = d.a_off ? "yes" : "no";
+  el("offB").textContent = d.b_off ? "yes" : "no";
+  if("mph" in d && d.mph != null){ el("mphpill").textContent = "mph: " + (d.mph.toFixed ? d.mph.toFixed(1) : d.mph); } else { el("mphpill").textContent="mph: —"; }
+  if(d.t) el("last").textContent="Last: "+new Date(d.t*1000).toLocaleTimeString();
+}
+function flash(dir,dt,mph){
+  // visual log (optional)
+  const lg=el("elog");
+  const label=(incomingRight ? (dir==="AB" ? "Incoming":"Outgoing") : (dir==="AB" ? "Outgoing":"Incoming"));
+  const line=document.createElement("div");
+  line.textContent=(dir==="AB"?"A→B ":"B→A ")+label+" ("+(dt??0).toFixed(2)+"s)"+(mph!=null?("  "+mph.toFixed(1)+" mph"):"");
+  lg.prepend(line); while(lg.childNodes.length>30) lg.removeChild(lg.lastChild);
+}
+
+const evt=new EventSource("/stream");
+evt.onmessage=ev=>{ try{ const d=JSON.parse(ev.data); if((d.type&&d.type==="tick")||("da"in d&&"db"in d)) drawTick(d);}catch(_){} };
+evt.addEventListener("tick",ev=>{ try{ drawTick(JSON.parse(ev.data)); }catch(_){} });
+evt.addEventListener("state",ev=>{ try{ const s=JSON.parse(ev.data); Object.keys(s).forEach(k=>{ if(el(k)){ if(el(k).type==="checkbox") el(k).checked=!!s[k]; else el(k).value=s[k]; const out=el(k+"_val"); if(out) setVal(k+"_val", s[k]); } }); const sf=s["spike_factor"]??0; syncSpikeDisplays(sf); setRangeLabels(); updateLines(); }catch(_){} });
+evt.addEventListener("dir",ev=>{ try{ const e=JSON.parse(ev.data); flash(e.dir,e.dt,e.mph); }catch(_){} });
+</script>
+</body>
+</html>
+"""

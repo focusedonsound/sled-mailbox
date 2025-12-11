@@ -1,0 +1,449 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Engineering Mode (config)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      --bg:#0f172a; --panel:#111827; --muted:#94a3b8; --text:#e5e7eb;
+      --accent:#38bdf8; --ok:#22c55e; --warn:#f59e0b; --err:#ef4444;
+    }
+    html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
+      font:14px/1.35 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+    .wrap{max-width:1150px;margin:22px auto 60px;padding:0 16px}
+    h1{font-size:18px;margin:0 0 14px}
+    .row{display:grid;gap:18px}.row.cols-2{grid-template-columns:1fr 1fr}
+    .panel{background:var(--panel);border-radius:10px;padding:16px;
+      box-shadow:0 0 0 1px rgba(255,255,255,.04) inset}
+    .bar{display:flex;align-items:center;gap:14px;margin-bottom:14px;flex-wrap:wrap}
+    label{color:var(--muted)} input[type="radio"]{vertical-align:middle}
+    input[type="number"],input[type="text"]{background:#0b1220;border:1px solid #233;color:var(--text);
+      padding:6px 8px;border-radius:8px;width:90px}
+    input.small{width:70px}
+    .btn{background:#1f2937;color:var(--text);border:1px solid #2a3b4d;padding:8px 12px;border-radius:8px;cursor:pointer}
+    .btn.primary{background:#0ea5e9;border-color:#0ea5e9;color:#001018}.btn:disabled{opacity:.5;cursor:not-allowed}
+    .status{font-weight:600}.status.ok{color:var(--ok)}.status.err{color:var(--err)}.status.unk{color:var(--warn)}
+    table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:6px 8px;border-bottom:1px solid rgba(255,255,255,.04)}
+    th{color:var(--muted);font-weight:600}
+    .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    .subtle{color:var(--muted);font-size:12px}
+    canvas{width:100%;height:160px;background:#0b1220;border-radius:10px;display:block}
+    .legend{display:flex;justify-content:space-between;color:var(--muted);font-size:12px;margin:4px 4px 0}
+    .hint{color:var(--muted);font-size:12px;margin-top:8px}
+    .tag{background:#0b1220;border:1px solid #223;color:var(--muted);padding:3px 8px;border-radius:999px;font-size:12px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="bar">
+      <a class="btn" href="/">Dashboard</a>
+      <a class="btn" href="/eng">Engineering (live)</a>
+      <span class="tag">Step 1: UI + stubs (no UART writes)</span>
+    </div>
+
+    <div class="panel">
+      <div class="bar" style="justify-content:space-between;">
+        <div class="bar">
+          <strong>Sensor selection</strong>
+          <label><input type="radio" name="side" value="A" checked> Sensor A</label>
+          <label><input type="radio" name="side" value="B"> Sensor B</label>
+          <span id="status" class="status unk">status: unknown</span>
+        </div>
+        <div class="bar">
+          <button class="btn" id="btnRead">Read (state)</button>
+          <button class="btn" id="btnSave">Save (server config)</button>
+          <button class="btn primary" id="btnApply">Apply to sensor</button>
+          <button class="btn" id="btnRestart">Restart sensor</button>
+        </div>
+      </div>
+
+      <h1>Threshold preview (gates 0–8)</h1>
+      <div class="grid-2">
+        <div>
+          <div class="legend"><span>Moving</span><span id="mvInfo">gate: – , energy: –</span></div>
+          <canvas id="canvasMv" width="520" height="160"></canvas>
+        </div>
+        <div>
+          <div class="legend"><span>Static</span><span id="stInfo">gate: – , energy: –</span></div>
+          <canvas id="canvasSt" width="520" height="160"></canvas>
+        </div>
+      </div>
+      <div class="hint">Vertical line = current gate (from live distance); dot + line = current energy & trend.</div>
+
+      <!-- NEW: live trend (time series) with current gate’s threshold overlay -->
+      <div class="grid-2" style="margin-top:16px">
+        <div>
+          <div class="legend"><span>Moving energy — trend</span><span class="subtle">current gate’s threshold shown</span></div>
+          <canvas id="trendMv" width="520" height="160"></canvas>
+        </div>
+        <div>
+          <div class="legend"><span>Static energy — trend</span><span class="subtle">current gate’s threshold shown</span></div>
+          <canvas id="trendSt" width="520" height="160"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="row" style="margin-top:18px;">
+      <div class="panel">
+        <h1>Global parameters</h1>
+        <div class="row cols-2">
+          <div>
+            <div class="bar">
+              <label>Range resolution</label>
+              <label><input type="radio" name="rg" id="rg075" checked> 0.75 m (9 gates)</label>
+              <label><input type="radio" name="rg" id="rg02"> 0.2 m (most gates, slower)</label>
+            </div>
+            <div class="bar"><label>Report delay (ms)</label><input id="repdelay" type="number" value="500" class="small"><span class="subtle">How long the target is missing before reporting disappear.</span></div>
+            <div class="bar"><label>Statistic time (s)</label><input id="stattime" type="number" value="120" class="small"><span class="subtle">Window for sensor’s internal statistics.</span></div>
+          </div>
+          <div>
+            <div class="bar"><label>Moving max RG (0–8)</label><input id="movmax" type="number" value="8" class="small"></div>
+            <div class="bar"><label>Static max RG (0–8)</label><input id="stamax" type="number" value="8" class="small"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h1>Per-gate thresholds (0–100)</h1>
+        <table>
+          <thead><tr><th>Gate</th><th>Moving</th><th>Static</th></tr></thead>
+        <tbody id="gateRows"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="msg" class="subtle" style="margin-top:10px;"></div>
+  </div>
+
+  <script>
+    // ---------------- Basics ----------------
+    const N_GATES = 9;
+
+    // canvases
+    const mvCanvas = document.getElementById('canvasMv');
+    const stCanvas = document.getElementById('canvasSt');
+    const mvCtx = mvCanvas.getContext('2d');
+    const stCtx = stCanvas.getContext('2d');
+
+    const trendMv = document.getElementById('trendMv');
+    const trendSt = document.getElementById('trendSt');
+    const tMv = trendMv.getContext('2d');
+    const tSt = trendSt.getContext('2d');
+
+    // per-side energy history (so switching A/B doesn't wipe the trail)
+    const HISTORY_N = 180; // ~54s at 300 ms polling
+    const history = {
+      A: { mv: Array(HISTORY_N).fill(null), st: Array(HISTORY_N).fill(null), idx: 0 },
+      B: { mv: Array(HISTORY_N).fill(null), st: Array(HISTORY_N).fill(null), idx: 0 },
+    };
+
+    const gateRows = document.getElementById('gateRows');
+    for (let g = 0; g < N_GATES; g++) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${g}</td>
+        <td><input id="mv_${g}" type="number" class="small" value="50" min="0" max="100"></td>
+        <td><input id="st_${g}" type="number" class="small" value="40" min="0" max="100"></td>
+      `;
+      gateRows.appendChild(tr);
+    }
+
+    function val(id, def=null) {
+      const el = document.getElementById(id);
+      if (!el) return def;
+      const v = el.value.trim();
+      const n = v === '' ? NaN : Number(v);
+      return Number.isFinite(n) ? n : def;
+    }
+    function setVal(id, v) { const el = document.getElementById(id); if (el) el.value = v; }
+    function sideSel() { return document.querySelector('input[name="side"]:checked').value; }
+
+    // --------------- Preview drawing (gates) ---------------
+    let live = { gateA:null, gateB:null, meA:null, meB:null, seA:null, seB:null };
+
+    function readThresholds() {
+      const mv = [], st = [];
+      for (let g = 0; g < N_GATES; g++) {
+        mv[g] = Math.max(0, Math.min(100, val(`mv_${g}`, 50)));
+        st[g] = Math.max(0, Math.min(100, val(`st_${g}`, 40)));
+      }
+      return { mv, st };
+    }
+
+    function drawPreview(ctx, thr, curGate, curEnergy) {
+      const w = ctx.canvas.width, h = ctx.canvas.height;
+      ctx.clearRect(0,0,w,h);
+
+      // grid (one line per gate value to mimic step)
+      ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let g = 0; g < N_GATES; g++) {
+        const y = h - (thr[g]/100)*h;
+        ctx.moveTo(0, y); ctx.lineTo(w, y);
+      }
+      ctx.stroke();
+
+      // threshold polyline (per gate)
+      ctx.strokeStyle = '#38bdf8';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      for (let g = 0; g < N_GATES; g++) {
+        const x = (g + 0.5) * (w / N_GATES);
+        const y = h - (thr[g]/100)*h;
+        if (g === 0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      }
+      ctx.stroke();
+
+      // current gate marker
+      if (Number.isFinite(curGate)) {
+        const xGate = (curGate + 0.5) * (w / N_GATES);
+        ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(xGate, 0); ctx.lineTo(xGate, h); ctx.stroke();
+      }
+
+      // current energy dot
+      if (Number.isFinite(curGate) && Number.isFinite(curEnergy)) {
+        const x = (curGate + 0.5) * (w / N_GATES);
+        const y = h - (Math.max(0, Math.min(100, curEnergy))/100)*h;
+        ctx.fillStyle = '#22c55e';
+        ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI*2); ctx.fill();
+      }
+    }
+
+    function fmt(x){ return Number.isFinite(x) ? x.toFixed(0) : '–'; }
+
+    function refreshPreview() {
+      const { mv, st } = readThresholds();
+      const s = sideSel();
+      const g  = (s === 'A') ? live.gateA : live.gateB;
+      const me = (s === 'A') ? live.meA   : live.meB;
+      const se = (s === 'A') ? live.seA   : live.seB;
+
+      drawPreview(mvCtx, mv, g, me);
+      drawPreview(stCtx, st, g, se);
+      drawTrends(g, mv[g ?? 0] ?? null, st[g ?? 0] ?? null);
+
+      document.getElementById('mvInfo').textContent = `gate: ${fmt(g)} , energy: ${fmt(me)}`;
+      document.getElementById('stInfo').textContent = `gate: ${fmt(g)} , energy: ${fmt(se)}`;
+    }
+
+    // --------------- Trend drawing (time series) ---------------
+    function drawTrend(ctx, series, thrVal){
+      const w = ctx.canvas.width, h = ctx.canvas.height;
+      ctx.clearRect(0,0,w,h);
+
+      // light grid
+      ctx.strokeStyle='rgba(255,255,255,0.06)';
+      ctx.lineWidth=1;
+      ctx.beginPath();
+      for (let i=1;i<=3;i++){ const y=h*(i/4); ctx.moveTo(0,y); ctx.lineTo(w,y); }
+      ctx.stroke();
+
+      // threshold across canvas (current gate’s value)
+      if (Number.isFinite(thrVal)){
+        const y = h - (thrVal/100)*h;
+        ctx.strokeStyle='rgba(56,189,248,0.7)';
+        ctx.lineWidth=1.5;
+        ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke();
+      }
+
+      // series (oldest -> newest)
+      const step = (w/(series.length-1));
+      ctx.strokeStyle='#7dd3fc';
+      ctx.lineWidth=2;
+      let started=false;
+      ctx.beginPath();
+      for (let i=0;i<series.length;i++){
+        const v = series[i];
+        if (Number.isFinite(v)){
+          const x = i*step;
+          const y = h - (Math.max(0,Math.min(100,v))/100)*h;
+          if(!started){ ctx.moveTo(x,y); started=true; } else { ctx.lineTo(x,y); }
+        } else {
+          started=false;
+        }
+      }
+      ctx.stroke();
+
+      // last point dot
+      const last = series[series.length-1];
+      if (Number.isFinite(last)){
+        const x = (series.length-1)*step;
+        const y = h - (Math.max(0,Math.min(100,last))/100)*h;
+        ctx.fillStyle='#22c55e';
+        ctx.beginPath(); ctx.arc(x,y,3,0,Math.PI*2); ctx.fill();
+      }
+    }
+
+    function drawTrends(curGate, thrMv, thrSt){
+      const s = sideSel();
+      const seriesMv = history[s].mv;
+      const seriesSt = history[s].st;
+      drawTrend(tMv, seriesMv, Number.isFinite(curGate)?thrMv:null);
+      drawTrend(tSt, seriesSt, Number.isFinite(curGate)?thrSt:null);
+    }
+
+    function pushHistory(side, me, se){
+      const h = history[side];
+      // shift-left ring buffer (fast enough for size 180)
+      h.mv.push(Number.isFinite(me)?me:null);  h.mv.shift();
+      h.st.push(Number.isFinite(se)?se:null);  h.st.shift();
+    }
+
+    // --------------- Live poll (/engdata) ---------------
+    async function pollLive() {
+      try {
+        const r = await fetch('/engdata');
+        if (r.ok) {
+          const j = await r.json();
+          if (j && j.cur_gate) {
+            const A = j.cur_gate.A || {};
+            const B = j.cur_gate.B || {};
+            live.gateA = isFinite(A.gate) ? A.gate : null;
+            live.gateB = isFinite(B.gate) ? B.gate : null;
+            live.meA   = isFinite(A.me)   ? A.me   : null;
+            live.meB   = isFinite(B.me)   ? B.me   : null;
+            live.seA   = isFinite(A.se)   ? A.se   : null;
+            live.seB   = isFinite(B.se)   ? B.se   : null;
+
+            // keep both sides’ trails up to date
+            pushHistory('A', live.meA, live.seA);
+            pushHistory('B', live.meB, live.seB);
+
+            refreshPreview();
+          }
+        }
+      } catch (_) { /* ignore transient errors */ }
+      setTimeout(pollLive, 300);
+    }
+
+    // --------------- Read/Save/Apply/Restart ---------------
+    function collectConfig() {
+      const mv = [], st = [];
+      for (let g=0; g<N_GATES; g++) { mv.push(val(`mv_${g}`,50)); st.push(val(`st_${g}`,40)); }
+      return {
+        side: sideSel(),
+        range_res_m: document.getElementById('rg02').checked ? 0.2 : 0.75,
+        report_delay_ms: val('repdelay', 500),
+        stat_time_s: val('stattime', 120),
+        moving_max_rg: val('movmax', 8),
+        static_max_rg: val('stamax', 8),
+        thresholds: { moving: mv, static: st }
+      };
+    }
+
+    async function loadCfg() {
+      setMsg('');
+      try {
+        const r = await fetch('/diag');
+        if (!r.ok) throw new Error(r.statusText);
+        const j = await r.json();
+
+        // reader status for selected side
+        const s = sideSel();
+        const reader = (j.readers && j.readers[s]) ? j.readers[s] : null;
+        const stEl = document.getElementById('status');
+        if (reader && reader.open) { stEl.textContent='status: open'; stEl.className='status ok'; }
+        else if (reader && reader.open === false) { stEl.textContent='status: error'; stEl.className='status err'; }
+        else { stEl.textContent='status: unknown'; stEl.className='status unk'; }
+
+        // hydrate optional defaults (tolerant)
+        if (j.eng && j.eng.thresholds) {
+          const mv = j.eng.thresholds.moving || [];
+          const st = j.eng.thresholds.static || [];
+          for (let g=0; g<N_GATES; g++) {
+            if (Number.isFinite(mv[g])) setVal(`mv_${g}`, mv[g]);
+            if (Number.isFinite(st[g])) setVal(`st_${g}`, st[g]);
+          }
+        }
+        if (j.eng && Number.isFinite(j.eng.report_delay_ms)) setVal('repdelay', j.eng.report_delay_ms);
+        if (j.eng && Number.isFinite(j.eng.stat_time_s)) setVal('stattime', j.eng.stat_time_s);
+        if (j.eng && Number.isFinite(j.eng.moving_max_rg)) setVal('movmax', j.eng.moving_max_rg);
+        if (j.eng && Number.isFinite(j.eng.static_max_rg)) setVal('stamax', j.eng.static_max_rg);
+        if (j.eng && Number.isFinite(j.eng.range_res_m)) {
+          if (j.eng.range_res_m <= 0.21) document.getElementById('rg02').checked = true;
+          else document.getElementById('rg075').checked = true;
+        }
+        refreshPreview();
+      } catch (err) {
+        setMsg('Read failed: ' + err, true);
+      }
+    }
+
+    async function saveCfg() {
+      setMsg('');
+      try {
+        const payload = collectConfig();
+        const r = await fetch('/eng/save', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify(payload)
+        });
+        const j = await r.json().catch(()=>({}));
+        if (!r.ok) throw new Error(j.error || r.statusText);
+        setMsg('Saved server config ok.');
+      } catch (err) { setMsg('Save failed: ' + err, true); }
+    }
+
+    // CHANGED: Use real UART endpoints
+    async function applyStub() {
+      setMsg('');
+      try {
+        const payload = collectConfig();
+        const side = payload.side;
+        const body = {
+          moving: { gate_min: 0, gate_max: payload.moving_max_rg },
+          still:  { gate_min: 0, gate_max: payload.static_max_rg },
+          thresholds: payload.thresholds,
+          range_res_m: payload.range_res_m,
+          report_delay_ms: payload.report_delay_ms,
+          stat_time_s: payload.stat_time_s
+        };
+        const r = await fetch(`/ld2410/${side}/apply`, {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify(body)
+        });
+        const j = await r.json().catch(()=>({}));
+        if (!r.ok || (j.ok === false)) throw new Error(j.error || r.statusText);
+        setMsg('Applied settings to sensor over UART.');
+      } catch (err) { setMsg('Apply failed: ' + err, true); }
+    }
+
+    // CHANGED: Use real UART endpoints
+    async function restartStub() {
+      setMsg('');
+      try {
+        const side = sideSel();
+        const r = await fetch(`/ld2410/${side}/restart`, { method:'POST' });
+        const j = await r.json().catch(()=>({}));
+        if (!r.ok || (j.ok === false)) throw new Error(j.error || r.statusText);
+        setMsg('Restart command sent.');
+      } catch (err) { setMsg('Restart failed: ' + err, true); }
+    }
+
+    function setMsg(t,isErr=false){ const el=document.getElementById('msg'); el.textContent=t||''; el.style.color=isErr?'var(--err)':'var(--muted)'; }
+
+    // --------------- Instant redraw hooks ---------------
+    document.addEventListener('input', (e) => {
+      if (e.target.matches('input[id^="mv_"], input[id^="st_"], #repdelay, #stattime, #movmax, #stamax')) {
+        refreshPreview();
+      }
+    });
+    document.querySelectorAll('input[name="side"]').forEach(r => {
+      r.addEventListener('change', () => { loadCfg(); refreshPreview(); });
+    });
+
+    // --------------- Buttons ---------------
+    document.getElementById('btnRead').addEventListener('click', loadCfg);
+    document.getElementById('btnSave').addEventListener('click', saveCfg);
+    document.getElementById('btnApply').addEventListener('click', applyStub);
+    document.getElementById('btnRestart').addEventListener('click', restartStub);
+
+    // boot
+    loadCfg();
+    pollLive();
+  </script>
+</body>
+</html>
