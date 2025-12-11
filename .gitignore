@@ -4,4 +4,7 @@ logs/
 videos/
 __pycache__/
 *.pyc
+# Virtualenvs
+venv/
+.env/
 EOF
